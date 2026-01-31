@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'role_selection_screen.dart';
+import 'dashboard/student_dashboard.dart';
+import 'dashboard/teacher_dashboard.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -123,7 +127,35 @@ class _SplashScreenState extends State<SplashScreen>
     _controller.forward();
 
     // Navigate after delay
-    Timer(const Duration(milliseconds: 3200), () {
+    Timer(const Duration(milliseconds: 3200), () async {
+      if (!mounted) return;
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        try {
+          // Fetch user role from Firestore
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+
+          if (userDoc.exists && mounted) {
+            final role = userDoc.get('role');
+            Widget dashboard = role == 'STUDENT'
+                ? const StudentDashboard()
+                : const TeacherDashboard();
+
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => dashboard),
+            );
+            return;
+          }
+        } catch (e) {
+          debugPrint('Error fetching user role: $e');
+        }
+      }
+
+      // If no user or error, go to Role Selection
       if (mounted) {
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(

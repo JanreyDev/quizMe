@@ -34,18 +34,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _navigateToDashboard() {
-    Widget dashboard = widget.role == 'STUDENT'
-        ? const StudentDashboard()
-        : const TeacherDashboard();
-
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => dashboard),
-      (route) => false,
-    );
-  }
-
   Future<void> _handleLogin() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       _showError('Please fill in all fields');
@@ -55,11 +43,46 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
-      _navigateToDashboard();
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
+
+      // Verify role and fetch data from Firestore
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .get();
+
+      if (!userDoc.exists) {
+        await FirebaseAuth.instance.signOut();
+        _showError('User profile not found. Please register again.');
+        return;
+      }
+
+      String storedRole = userDoc.get('role');
+      if (storedRole != widget.role) {
+        // Wrong role selected!
+        await FirebaseAuth.instance.signOut();
+        _showError(
+          'Access Denied: You are registered as a $storedRole. Please log in through the $storedRole portal.',
+        );
+        return;
+      }
+
+      // Success! Navigate based on the STORED role
+      Widget dashboard = storedRole == 'STUDENT'
+          ? const StudentDashboard()
+          : const TeacherDashboard();
+
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => dashboard),
+          (route) => false,
+        );
+      }
     } on FirebaseException catch (e) {
       String message = 'Login failed';
       if (e.code == 'user-not-found') {
