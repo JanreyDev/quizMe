@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'auth/login_screen.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
@@ -75,14 +76,26 @@ class RoleSelectionScreen extends StatelessWidget {
                   _RoleButton(
                     text: 'STUDENT',
                     onTap: () {
-                      // Navigate to Student Login
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const LoginScreen(role: 'STUDENT'),
+                        ),
+                      );
                     },
                   ),
                   const SizedBox(height: 20),
                   _RoleButton(
                     text: 'TEACHER',
                     onTap: () {
-                      // Navigate to Teacher Login
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const LoginScreen(role: 'TEACHER'),
+                        ),
+                      );
                     },
                   ),
                 ],
