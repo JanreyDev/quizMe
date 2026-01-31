@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../dashboard/student_dashboard.dart';
+import '../dashboard/teacher_dashboard.dart';
 
 class RegisterScreen extends StatefulWidget {
   final String role; // 'STUDENT' or 'TEACHER'
@@ -16,6 +21,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -26,15 +32,86 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  void _handleSignUp() {
-    // TODO: Implement Firebase Auth registration
-    if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  void _navigateToDashboard() {
+    Widget dashboard = widget.role == 'STUDENT'
+        ? const StudentDashboard()
+        : const TeacherDashboard();
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => dashboard),
+      (route) => false,
+    );
+  }
+
+  Future<void> _handleSignUp() async {
+    // Validation
+    if (_nameController.text.isEmpty ||
+        _emailController.text.isEmpty ||
+        _passwordController.text.isEmpty ||
+        _confirmPasswordController.text.isEmpty) {
+      _showError('Please fill in all fields');
       return;
     }
-    print('Sign Up as ${widget.role}: ${_emailController.text}');
+
+    if (_passwordController.text != _confirmPasswordController.text) {
+      _showError('Passwords do not match');
+      return;
+    }
+
+    if (_passwordController.text.length < 6) {
+      _showError('Password must be at least 6 characters');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Create user in Firebase Auth
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
+
+      // Update display name
+      await userCredential.user?.updateDisplayName(_nameController.text.trim());
+
+      // Store user data in Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .set({
+            'name': _nameController.text.trim(),
+            'email': _emailController.text.trim(),
+            'role': widget.role,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+
+      _navigateToDashboard();
+    } on FirebaseException catch (e) {
+      String message = e.message ?? 'Registration failed';
+      if (e.code == 'email-already-in-use') {
+        message = 'This email is already registered';
+      } else if (e.code == 'weak-password') {
+        message = 'Password is too weak';
+      } else if (e.code == 'invalid-email') {
+        message = 'Invalid email address';
+      } else {
+        message = 'Error (${e.code}): $message';
+      }
+      _showError(message);
+    } catch (e) {
+      _showError('An error occurred: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -56,7 +133,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
           ),
-          // Decorative circle - bottom left (positioned at screen bottom)
+          // Decorative circle - bottom left
           Positioned(
             bottom: -100,
             left: -100,
@@ -162,7 +239,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 30),
                   // Sign Up button
-                  _ActionButton(text: 'Sign Up', onPressed: _handleSignUp),
+                  _ActionButton(
+                    text: _isLoading ? 'Creating account...' : 'Sign Up',
+                    onPressed: _isLoading ? () {} : _handleSignUp,
+                  ),
                   const SizedBox(height: 20),
                   // Login Instead link
                   Center(

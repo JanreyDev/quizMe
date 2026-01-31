@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'register_screen.dart';
+import '../dashboard/student_dashboard.dart';
+import '../dashboard/teacher_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   final String role; // 'STUDENT' or 'TEACHER'
@@ -14,6 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -22,14 +28,60 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _handleLogin() {
-    // TODO: Implement Firebase Auth login
-    print('Login as ${widget.role}: ${_emailController.text}');
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  void _navigateToDashboard() {
+    Widget dashboard = widget.role == 'STUDENT'
+        ? const StudentDashboard()
+        : const TeacherDashboard();
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => dashboard),
+      (route) => false,
+    );
+  }
+
+  Future<void> _handleLogin() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      _showError('Please fill in all fields');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      _navigateToDashboard();
+    } on FirebaseException catch (e) {
+      String message = 'Login failed';
+      if (e.code == 'user-not-found') {
+        message = 'No user found with this email';
+      } else if (e.code == 'wrong-password') {
+        message = 'Wrong password';
+      } else if (e.code == 'invalid-email') {
+        message = 'Invalid email address';
+      }
+      _showError(message);
+    } catch (e) {
+      _showError('An error occurred. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   void _handleGoogleSignIn() {
     // TODO: Implement Google Sign-In
-    print('Google Sign-In as ${widget.role}');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Google Sign-In coming soon!')),
+    );
   }
 
   @override
@@ -51,7 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-          // Decorative circle - bottom left (positioned at screen bottom)
+          // Decorative circle - bottom left
           Positioned(
             bottom: -100,
             left: -100,
@@ -119,7 +171,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 40),
                   // Login button
-                  _ActionButton(text: 'Login', onPressed: _handleLogin),
+                  _ActionButton(
+                    text: _isLoading ? 'Logging in...' : 'Login',
+                    onPressed: _isLoading ? () {} : _handleLogin,
+                  ),
                   const SizedBox(height: 16),
                   // Google Sign-In button
                   _ActionButton(
