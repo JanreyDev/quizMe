@@ -21,23 +21,44 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Custom Header
-            const Padding(
-              padding: EdgeInsets.all(20.0),
+            Padding(
+              padding: const EdgeInsets.all(20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Center(
-                    child: Text(
-                      'QuizMe',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF4A4A8C),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Expanded(
+                        child: Center(
+                          child: Text(
+                            'QuizMe',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF4A4A8C),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      // Logout button
+                      IconButton(
+                        onPressed: () async {
+                          await FirebaseAuth.instance.signOut();
+                          if (context.mounted) {
+                            Navigator.of(
+                              context,
+                            ).pushNamedAndRemoveUntil('/', (route) => false);
+                          }
+                        },
+                        icon: const Icon(Icons.logout),
+                        color: const Color(0xFF4A4A8C),
+                        tooltip: 'Logout',
+                      ),
+                    ],
                   ),
-                  SizedBox(height: 8),
-                  Text(
+                  const SizedBox(height: 8),
+                  const Text(
                     'Dashboard',
                     style: TextStyle(
                       fontSize: 22,
