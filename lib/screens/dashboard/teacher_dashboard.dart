@@ -151,23 +151,87 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               ),
               child: Stack(
                 children: [
-                  // Three-dot menu
+                  // Three-dot menu - now a PopupMenuButton
                   Positioned(
-                    top: 16,
-                    right: 16,
-                    child: Row(
-                      children: List.generate(
-                        3,
-                        (index) => Container(
-                          margin: const EdgeInsets.only(left: 4),
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Colors.black,
-                            shape: BoxShape.circle,
+                    top: 8,
+                    right: 8,
+                    child: PopupMenuButton<String>(
+                      icon: Row(
+                        children: List.generate(
+                          3,
+                          (index) => Container(
+                            margin: const EdgeInsets.only(left: 4),
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Colors.black,
+                              shape: BoxShape.circle,
+                            ),
                           ),
                         ),
                       ),
+                      onSelected: (String result) {
+                        switch (result) {
+                          case 'share':
+                            // TODO: Implement share link functionality
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Link copied')),
+                            );
+                            break;
+                          case 'edit':
+                            // TODO: Navigate to edit class screen
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Edit Class')),
+                            );
+                            break;
+                          case 'delete':
+                            // TODO: Show delete confirmation dialog
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Delete Class')),
+                            );
+                            break;
+                        }
+                      },
+                      itemBuilder: (BuildContext context) =>
+                          <PopupMenuEntry<String>>[
+                            const PopupMenuItem<String>(
+                              value: 'share',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.share, size: 20),
+                                  SizedBox(width: 12),
+                                  Text('Share Link'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem<String>(
+                              value: 'edit',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.edit, size: 20),
+                                  SizedBox(width: 12),
+                                  Text('Edit Class'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem<String>(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.delete,
+                                    size: 20,
+                                    color: Colors.red,
+                                  ),
+                                  SizedBox(width: 12),
+                                  Text(
+                                    'Delete Class',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                     ),
                   ),
                   // Class code - LEFT aligned
