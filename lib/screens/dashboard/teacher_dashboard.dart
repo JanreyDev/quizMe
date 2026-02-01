@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../class/create_class_screen.dart';
@@ -256,18 +257,54 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                           ],
                     ),
                   ),
-                  // Class code - LEFT aligned
+                  // Class code and copy button - LEFT aligned
                   Positioned(
                     top: 60,
                     left: 30,
-                    child: Text(
-                      data['classCode'] ?? 'AR 101',
-                      style: const TextStyle(
-                        fontSize: 64,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                        height: 1,
-                      ),
+                    child: Row(
+                      children: [
+                        Text(
+                          data['classCode'] ?? 'AR 101',
+                          style: const TextStyle(
+                            fontSize: 64,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                            height: 1,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        // Copy button
+                        InkWell(
+                          onTap: () {
+                            final classCode = data['classCode'] ?? '';
+                            if (classCode.isNotEmpty) {
+                              // Copy to clipboard
+                              Clipboard.setData(ClipboardData(text: classCode));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Class code "$classCode" copied!',
+                                  ),
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.black, width: 1),
+                            ),
+                            child: const Icon(
+                              Icons.copy,
+                              size: 24,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
