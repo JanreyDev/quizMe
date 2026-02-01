@@ -106,6 +106,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           itemBuilder: (context, index) {
             final classDoc = snapshot.data!.docs[index];
             final data = classDoc.data() as Map<String, dynamic>;
+            data['id'] = classDoc.id; // Add document ID to data
             return _buildClassCard(data);
           },
         );

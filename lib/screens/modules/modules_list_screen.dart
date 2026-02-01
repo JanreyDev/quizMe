@@ -1,6 +1,12 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
 
-class ModulesListScreen extends StatelessWidget {
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:file_picker/file_picker.dart';
+
+class ModulesListScreen extends StatefulWidget {
   final String classCode;
   final String classId;
 
@@ -9,6 +15,125 @@ class ModulesListScreen extends StatelessWidget {
     required this.classCode,
     required this.classId,
   });
+
+  @override
+  State<ModulesListScreen> createState() => _ModulesListScreenState();
+}
+
+class _ModulesListScreenState extends State<ModulesListScreen> {
+  bool _isUploading = false;
+
+  Future<void> _uploadModule() async {
+    // Show dialog to get module title
+    final titleController = TextEditingController();
+    final title = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Upload Module'),
+        content: TextField(
+          controller: titleController,
+          decoration: const InputDecoration(
+            labelText: 'Module Title',
+            hintText: 'e.g., Lesson 1: Introduction',
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, titleController.text),
+            child: const Text('Next'),
+          ),
+        ],
+      ),
+    );
+
+    if (title == null || title.isEmpty) return;
+
+    // Pick file
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx', 'ppt', 'pptx'],
+    );
+
+    if (result == null) return;
+
+    setState(() => _isUploading = true);
+
+    try {
+      final file = result.files.first;
+      final fileName = file.name;
+
+      // Upload to Firebase Storage
+      final storageRef = FirebaseStorage.instance.ref().child(
+        'modules/${widget.classId}/${DateTime.now().millisecondsSinceEpoch}_$fileName',
+      );
+
+      late UploadTask uploadTask;
+
+      // Handle web vs mobile differently
+      if (file.bytes != null) {
+        // Web platform - use bytes
+        uploadTask = storageRef.putData(file.bytes!);
+      } else if (file.path != null) {
+        // Mobile platform - use file path
+        uploadTask = storageRef.putFile(File(file.path!));
+      } else {
+        throw Exception('Could not read file');
+      }
+
+      final snapshot = await uploadTask;
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+
+      // Save to Firestore
+      await FirebaseFirestore.instance
+          .collection('classes')
+          .doc(widget.classId)
+          .collection('modules')
+          .add({
+            'title': title,
+            'fileUrl': downloadUrl,
+            'fileName': fileName,
+            'fileType': file.extension ?? 'unknown',
+            'uploadedBy': FirebaseAuth.instance.currentUser?.uid,
+            'uploadedAt': FieldValue.serverTimestamp(),
+          });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Module uploaded successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploading = false);
+      }
+    }
+  }
+
+  IconData _getFileIcon(String? fileType) {
+    switch (fileType?.toLowerCase()) {
+      case 'pdf':
+        return Icons.picture_as_pdf;
+      case 'doc':
+      case 'docx':
+        return Icons.description;
+      case 'ppt':
+      case 'pptx':
+        return Icons.slideshow;
+      default:
+        return Icons.description;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +147,7 @@ class ModulesListScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          classCode,
+          widget.classCode,
           style: const TextStyle(
             color: Colors.black,
             fontSize: 18,
@@ -46,31 +171,53 @@ class ModulesListScreen extends StatelessWidget {
               ),
             ),
           ),
-          // Module Cards List
+          // Module Cards List - Dynamic from Firestore
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              children: [
-                _buildModuleCard(
-                  title: 'Lesson 1: Fundamentals of SE',
-                  icon: Icons.description,
-                ),
-                const SizedBox(height: 12),
-                _buildModuleCard(
-                  title: 'Lesson 2: Software Development Lifecycle Overview',
-                  icon: Icons.description,
-                ),
-                const SizedBox(height: 12),
-                _buildModuleCard(
-                  title: 'Lesson 3: Agile vs Waterfall',
-                  icon: Icons.description,
-                ),
-                const SizedBox(height: 12),
-                _buildModuleCard(
-                  title: 'Scrum Workflow Diagram',
-                  icon: Icons.description,
-                ),
-              ],
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('classes')
+                  .doc(widget.classId)
+                  .collection('modules')
+                  .orderBy('uploadedAt', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final modules = snapshot.data?.docs ?? [];
+
+                if (modules.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'No modules yet.\nClick "Upload" to add one!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  itemCount: modules.length,
+                  itemBuilder: (context, index) {
+                    final moduleData =
+                        modules[index].data() as Map<String, dynamic>;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _buildModuleCard(
+                        title: moduleData['title'] ?? 'Untitled Module',
+                        fileType: moduleData['fileType'],
+                        fileUrl: moduleData['fileUrl'],
+                      ),
+                    );
+                  },
+                );
+              },
             ),
           ),
           // Bottom Buttons
@@ -80,9 +227,7 @@ class ModulesListScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
-                      // TODO: Handle Upload action
-                    },
+                    onPressed: _isUploading ? null : _uploadModule,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF81D4FA),
                       foregroundColor: Colors.white,
@@ -92,13 +237,22 @@ class ModulesListScreen extends StatelessWidget {
                       ),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      'Upload',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: _isUploading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Upload',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -133,7 +287,11 @@ class ModulesListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildModuleCard({required String title, required IconData icon}) {
+  Widget _buildModuleCard({
+    required String title,
+    String? fileType,
+    String? fileUrl,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -153,7 +311,11 @@ class ModulesListScreen extends StatelessWidget {
               color: Colors.white,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, size: 24, color: const Color(0xFFD32F2F)),
+            child: Icon(
+              _getFileIcon(fileType),
+              size: 24,
+              color: const Color(0xFFD32F2F),
+            ),
           ),
           const SizedBox(width: 16),
           // Module title
