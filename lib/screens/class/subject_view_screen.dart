@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../assignments/assignments_list_screen.dart';
 import '../modules/modules_list_screen.dart';
+import '../people/people_list_screen.dart';
 
 class SubjectViewScreen extends StatelessWidget {
   final String classCode;
@@ -96,7 +97,15 @@ class SubjectViewScreen extends StatelessWidget {
                     icon: Icons.people_outline,
                     title: 'People',
                     onTap: () {
-                      // TODO: Navigate to People screen
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PeopleListScreen(
+                            classCode: classCode,
+                            classId: classId,
+                          ),
+                        ),
+                      );
                     },
                   ),
                   const Spacer(),
