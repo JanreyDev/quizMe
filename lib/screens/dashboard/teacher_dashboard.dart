@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../class/create_class_screen.dart';
+import '../class/subject_view_screen.dart';
 
 class TeacherDashboard extends StatefulWidget {
   const TeacherDashboard({super.key});
@@ -113,99 +114,116 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   }
 
   Widget _buildClassCard(Map<String, dynamic> data) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      height: 200,
-      child: Stack(
-        children: [
-          // Main gradient container
-          Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF4CAF50), Color(0xFF4DB6AC)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SubjectViewScreen(
+              classCode: data['classCode'] ?? 'AR 101',
+              className: data['name'] ?? 'Software Engineering',
+              classId: data['id'] ?? '',
             ),
-            child: Stack(
-              children: [
-                // Three-dot menu
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: Row(
-                    children: List.generate(
-                      3,
-                      (index) => Container(
-                        margin: const EdgeInsets.only(left: 4),
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: Colors.black,
-                          shape: BoxShape.circle,
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        height: 200,
+        child: Stack(
+          children: [
+            // Main gradient container
+            Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF4CAF50), Color(0xFF4DB6AC)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  // Three-dot menu
+                  Positioned(
+                    top: 16,
+                    right: 16,
+                    child: Row(
+                      children: List.generate(
+                        3,
+                        (index) => Container(
+                          margin: const EdgeInsets.only(left: 4),
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Colors.black,
+                            shape: BoxShape.circle,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                // Class code - LEFT aligned
-                Positioned(
-                  top: 60,
-                  left: 30,
-                  child: Text(
-                    data['classCode'] ?? 'AR 101',
-                    style: const TextStyle(
-                      fontSize: 64,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                      height: 1,
+                  // Class code - LEFT aligned
+                  Positioned(
+                    top: 60,
+                    left: 30,
+                    child: Text(
+                      data['classCode'] ?? 'AR 101',
+                      style: const TextStyle(
+                        fontSize: 64,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                        height: 1,
+                      ),
                     ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Bottom subtitle container - overlaying on top
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE8EAF6),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, -2),
                   ),
                 ],
               ),
-              child: Text(
-                data['name'] ?? 'Software Engineering',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF3F51B5),
+            ),
+            // Bottom subtitle container - overlaying on top
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 20,
+                  horizontal: 24,
                 ),
-                textAlign: TextAlign.left,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8EAF6),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  data['name'] ?? 'Software Engineering',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF3F51B5),
+                  ),
+                  textAlign: TextAlign.left,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
