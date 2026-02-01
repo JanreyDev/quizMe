@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
-import '../assignments/assignments_list_screen.dart';
-import '../modules/modules_list_screen.dart';
 
-class SubjectViewScreen extends StatelessWidget {
+class ModulesListScreen extends StatelessWidget {
   final String classCode;
-  final String className;
   final String classId;
 
-  const SubjectViewScreen({
+  const ModulesListScreen({
     super.key,
     required this.classCode,
-    required this.className,
     required this.classId,
   });
 
@@ -38,70 +34,43 @@ class SubjectViewScreen extends StatelessWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Class Name Title
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          // Modules Title
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Text(
-              className,
-              style: const TextStyle(
+              'Modules',
+              style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          // Menu Options
+          // Module Cards List
           Expanded(
-            child: Padding(
+            child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  _buildMenuOption(
-                    context,
-                    icon: Icons.assignment_outlined,
-                    title: 'Assignments',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AssignmentsListScreen(
-                            classCode: classCode,
-                            classId: classId,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  _buildMenuOption(
-                    context,
-                    icon: Icons.menu_book_outlined,
-                    title: 'Modules',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ModulesListScreen(
-                            classCode: classCode,
-                            classId: classId,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  _buildMenuOption(
-                    context,
-                    icon: Icons.people_outline,
-                    title: 'People',
-                    onTap: () {
-                      // TODO: Navigate to People screen
-                    },
-                  ),
-                  const Spacer(),
-                ],
-              ),
+              children: [
+                _buildModuleCard(
+                  title: 'Lesson 1: Fundamentals of SE',
+                  icon: Icons.description,
+                ),
+                const SizedBox(height: 12),
+                _buildModuleCard(
+                  title: 'Lesson 2: Software Development Lifecycle Overview',
+                  icon: Icons.description,
+                ),
+                const SizedBox(height: 12),
+                _buildModuleCard(
+                  title: 'Lesson 3: Agile vs Waterfall',
+                  icon: Icons.description,
+                ),
+                const SizedBox(height: 12),
+                _buildModuleCard(
+                  title: 'Scrum Workflow Diagram',
+                  icon: Icons.description,
+                ),
+              ],
             ),
           ),
           // Bottom Buttons
@@ -164,38 +133,41 @@ class SubjectViewScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuOption(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: Colors.grey[300]!, width: 1),
-          ),
+  Widget _buildModuleCard({required String title, required IconData icon}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF26A69A), Color(0xFF009688)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        child: Row(
-          children: [
-            Icon(icon, size: 24, color: Colors.black87),
-            const SizedBox(width: 16),
-            Text(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          // Icon container with white background
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 24, color: const Color(0xFFD32F2F)),
+          ),
+          const SizedBox(width: 16),
+          // Module title
+          Expanded(
+            child: Text(
               title,
               style: const TextStyle(
                 fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Colors.black87,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
               ),
             ),
-            const Spacer(),
-            Icon(Icons.chevron_right, color: Colors.grey[400]),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
