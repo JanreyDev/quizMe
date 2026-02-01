@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
-import '../assignments/assignments_list_screen.dart';
 
-class SubjectViewScreen extends StatelessWidget {
+class AssignmentsListScreen extends StatelessWidget {
   final String classCode;
-  final String className;
   final String classId;
 
-  const SubjectViewScreen({
+  const AssignmentsListScreen({
     super.key,
     required this.classCode,
-    required this.className,
     required this.classId,
   });
 
@@ -37,62 +34,41 @@ class SubjectViewScreen extends StatelessWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Class Name Title
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          // Assignments Title
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Text(
-              className,
-              style: const TextStyle(
+              'Assignments',
+              style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          // Menu Options
+          // Assignment Cards List
           Expanded(
-            child: Padding(
+            child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  _buildMenuOption(
-                    context,
-                    icon: Icons.assignment_outlined,
-                    title: 'Assignments',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AssignmentsListScreen(
-                            classCode: classCode,
-                            classId: classId,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  _buildMenuOption(
-                    context,
-                    icon: Icons.menu_book_outlined,
-                    title: 'Modules',
-                    onTap: () {
-                      // TODO: Navigate to Modules screen
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  _buildMenuOption(
-                    context,
-                    icon: Icons.people_outline,
-                    title: 'People',
-                    onTap: () {
-                      // TODO: Navigate to People screen
-                    },
-                  ),
-                  const Spacer(),
-                ],
-              ),
+              children: [
+                _buildAssignmentCard(
+                  title: 'Exam',
+                  subtitle: 'QuizMe',
+                  dueDate: 'Aug 14, 11:59 PM',
+                ),
+                const SizedBox(height: 12),
+                _buildAssignmentCard(
+                  title: 'SE 101 Essay',
+                  subtitle: 'Modern Software Analysis',
+                  dueDate: 'Aug 11, 11:59 PM',
+                ),
+                const SizedBox(height: 12),
+                _buildAssignmentCard(
+                  title: 'Math 102',
+                  subtitle: 'Trigonometry Practice Quiz',
+                  dueDate: 'Aug 15, 9:00 PM',
+                ),
+              ],
             ),
           ),
           // Bottom Buttons
@@ -155,38 +131,38 @@ class SubjectViewScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuOption(
-    BuildContext context, {
-    required IconData icon,
+  Widget _buildAssignmentCard({
     required String title,
-    required VoidCallback onTap,
+    required String subtitle,
+    required String dueDate,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: Colors.grey[300]!, width: 1),
-          ),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF64B5F6), Color(0xFF42A5F5)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        child: Row(
-          children: [
-            Icon(icon, size: 24, color: Colors.black87),
-            const SizedBox(width: 16),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Colors.black87,
-              ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$title — $subtitle',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
             ),
-            const Spacer(),
-            Icon(Icons.chevron_right, color: Colors.grey[400]),
-          ],
-        ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Due $dueDate',
+            style: const TextStyle(fontSize: 14, color: Colors.white70),
+          ),
+        ],
       ),
     );
   }
