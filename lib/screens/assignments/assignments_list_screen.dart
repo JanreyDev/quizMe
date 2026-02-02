@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'choose_assignment_type_screen.dart';
 
 class AssignmentsListScreen extends StatelessWidget {
   final String classCode;
@@ -103,7 +104,13 @@ class AssignmentsListScreen extends StatelessWidget {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
-                      // TODO: Handle Create action
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              ChooseAssignmentTypeScreen(classCode: classCode),
+                        ),
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF42A5F5),
