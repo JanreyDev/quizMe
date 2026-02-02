@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../assignments/student_assignments_screen.dart';
 
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
@@ -218,7 +219,20 @@ class _StudentDashboardState extends State<StudentDashboard> {
                       final classData = classes[index];
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 16),
-                        child: _buildClassCard(classData),
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => StudentAssignmentsScreen(
+                                  classCode: classData['classCode'] ?? '',
+                                  className: classData['name'] ?? '',
+                                ),
+                              ),
+                            );
+                          },
+                          child: _buildClassCard(classData),
+                        ),
                       );
                     },
                   );

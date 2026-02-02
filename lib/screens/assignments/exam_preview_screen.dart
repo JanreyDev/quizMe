@@ -151,6 +151,7 @@ class ExamPreviewScreen extends StatelessWidget {
                             'teacherName': teacherName,
                             'dueDate': dueDate,
                             'type': 'EXAM',
+                            'isPublished': false,
                             'createdAt': FieldValue.serverTimestamp(),
                             'questions': questions
                                 .map(
