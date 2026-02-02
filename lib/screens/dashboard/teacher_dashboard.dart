@@ -102,6 +102,48 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
+  Future<void> _deleteClass(String classId, String className) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Class?'),
+        content: Text(
+          'Are you sure you want to delete "$className"? All assignments and submissions associated with this class will be lost.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('CANCEL'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('DELETE', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('classes')
+            .doc(classId)
+            .delete();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Class deleted successfully')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error deleting: $e')));
+        }
+      }
+    }
+  }
+
   Widget _buildClassesPage() {
     final user = FirebaseAuth.instance.currentUser;
     return StreamBuilder<QuerySnapshot>(
@@ -137,58 +179,71 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   }
 
   Widget _buildClassCard(Map<String, dynamic> data) {
+    final classCode = data['classCode'] ?? 'AR 101';
+    final className = data['name'] ?? 'Software Engineering';
+    final classId = data['id'] ?? '';
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => SubjectViewScreen(
-              classCode: data['classCode'] ?? 'AR 101',
-              className: data['name'] ?? 'Software Engineering',
-              classId: data['id'] ?? '',
+              classCode: classCode,
+              className: className,
+              classId: classId,
             ),
           ),
         );
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        height: 200,
+        margin: const EdgeInsets.only(bottom: 24),
+        height: 125, // Adjusted for the pill overlap
         child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            // Main gradient container
+            // Main gradient container (The Top Card)
             Container(
+              height: 100, // Fixed height for the top section
+              width: double.infinity,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF4CAF50), Color(0xFF4DB6AC)],
+                  colors: [Color(0xFF27AE60), Color(0xFF1E5151)],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                 ),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
               child: Stack(
                 children: [
-                  // Three-dot menu - now a PopupMenuButton
+                  // Horizontal Triple-dot menu
                   Positioned(
-                    top: 8,
-                    right: 8,
+                    top: 12,
+                    right: 12,
                     child: PopupMenuButton<String>(
-                      icon: Row(
-                        children: List.generate(
-                          3,
-                          (index) => Container(
-                            margin: const EdgeInsets.only(left: 4),
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: Colors.black,
-                              shape: BoxShape.circle,
+                      icon: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: List.generate(
+                            3,
+                            (index) => Container(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 1.5,
+                              ),
+                              width: 5,
+                              height: 5,
+                              decoration: const BoxDecoration(
+                                color: Colors.black,
+                                shape: BoxShape.circle,
+                              ),
                             ),
                           ),
                         ),
@@ -196,152 +251,91 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                       onSelected: (String result) {
                         switch (result) {
                           case 'share':
-                            // TODO: Implement share link functionality
+                            Clipboard.setData(ClipboardData(text: classCode));
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Link copied')),
-                            );
-                            break;
-                          case 'edit':
-                            // TODO: Navigate to edit class screen
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Edit Class')),
+                              const SnackBar(
+                                content: Text('Class code copied'),
+                              ),
                             );
                             break;
                           case 'delete':
-                            // TODO: Show delete confirmation dialog
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Delete Class')),
-                            );
+                            _deleteClass(classId, className);
                             break;
                         }
                       },
-                      itemBuilder: (BuildContext context) =>
-                          <PopupMenuEntry<String>>[
-                            const PopupMenuItem<String>(
-                              value: 'share',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.share, size: 20),
-                                  SizedBox(width: 12),
-                                  Text('Share Link'),
-                                ],
-                              ),
-                            ),
-                            const PopupMenuItem<String>(
-                              value: 'edit',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.edit, size: 20),
-                                  SizedBox(width: 12),
-                                  Text('Edit Class'),
-                                ],
-                              ),
-                            ),
-                            const PopupMenuItem<String>(
-                              value: 'delete',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.delete,
-                                    size: 20,
-                                    color: Colors.red,
-                                  ),
-                                  SizedBox(width: 12),
-                                  Text(
-                                    'Delete Class',
-                                    style: TextStyle(color: Colors.red),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                    ),
-                  ),
-                  // Class code and copy button - LEFT aligned
-                  Positioned(
-                    top: 60,
-                    left: 30,
-                    child: Row(
-                      children: [
-                        Text(
-                          data['classCode'] ?? 'AR 101',
-                          style: const TextStyle(
-                            fontSize: 64,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                            height: 1,
+                      itemBuilder: (BuildContext context) => [
+                        const PopupMenuItem(
+                          value: 'share',
+                          child: Row(
+                            children: [
+                              Icon(Icons.copy, size: 20),
+                              SizedBox(width: 12),
+                              Text('Copy Code'),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        // Copy button
-                        InkWell(
-                          onTap: () {
-                            final classCode = data['classCode'] ?? '';
-                            if (classCode.isNotEmpty) {
-                              // Copy to clipboard
-                              Clipboard.setData(ClipboardData(text: classCode));
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Class code "$classCode" copied!',
-                                  ),
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
-                            }
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.black, width: 1),
-                            ),
-                            child: const Icon(
-                              Icons.copy,
-                              size: 24,
-                              color: Colors.black,
-                            ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, size: 20, color: Colors.red),
+                              SizedBox(width: 12),
+                              Text(
+                                'Delete Class',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
+                  // Class code - Centered Bold Black
+                  Center(
+                    child: Text(
+                      classCode,
+                      style: const TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A),
+                        letterSpacing: -1,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
-            // Bottom subtitle container - overlaying on top
+            // Bottom "Pill" container (The Subject Name)
             Positioned(
               bottom: 0,
-              left: 0,
-              right: 0,
+              left: 8,
+              right: 8, // Made it almost full width
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                  vertical: 20,
-                  horizontal: 24,
+                  vertical: 6,
+                  horizontal: 16,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE8EAF6),
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                  ),
+                  color: const Color(0xFFE0E0E0), // Slightly lighter grey
+                  borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, -2),
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
                 child: Text(
-                  data['name'] ?? 'Software Engineering',
+                  className,
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 15, // Reduced font size
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF3F51B5),
+                    color: Color(0xFF2C3E50), // Dark Blue text
                   ),
-                  textAlign: TextAlign.left,
+                  textAlign: TextAlign.center, // Centered text
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),
