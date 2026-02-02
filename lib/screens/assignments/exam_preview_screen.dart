@@ -1,9 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'add_questions_screen.dart';
 
 class ExamPreviewScreen extends StatelessWidget {
   final String classCode;
+  final String title;
+  final String teacherName;
+  final DateTime dueDate;
+  final List<Question> questions;
 
-  const ExamPreviewScreen({super.key, required this.classCode});
+  const ExamPreviewScreen({
+    super.key,
+    required this.classCode,
+    required this.title,
+    required this.teacherName,
+    required this.dueDate,
+    required this.questions,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -41,82 +54,86 @@ class ExamPreviewScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Multiple Choice Preview
-            _buildSectionHeader('Multiple Choice'),
-            _buildQuestionCard(
-              question: 'What is the largest planet in the solar system?',
-              options: ['Venus', 'Mercury', 'Jupiter', 'Saturn'],
-              correctAnswer: 'Jupiter',
-            ),
-            const SizedBox(height: 16),
-            _buildQuestionInput(
-              question: 'Who is the most handsome instructor?',
-              answer: 'Iratus Glenn Cruz',
-            ),
-
-            const SizedBox(height: 32),
-
-            // Identification Preview
-            _buildSectionHeader('Identification'),
-            _buildPillButton('List all CCIT instructors'),
-            const SizedBox(height: 8),
-            _buildAnswerLine(),
-            _buildAnswerLine(),
-
-            const SizedBox(height: 32),
-
-            // Enumeration Preview
-            _buildSectionHeader('Enumeration'),
-            Container(
-              height: 100,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-            ),
-
-            const SizedBox(height: 32),
-
-            // True or False Preview
-            _buildSectionHeader('TRUE or FALSE'),
-            const Text(
-              'IS THE SUN RED?',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _buildToggleButton('TRUE', isSelected: false),
-                const SizedBox(width: 12),
-                _buildToggleButton('FALSE', isSelected: true),
-              ],
-            ),
-
-            const SizedBox(height: 32),
-
-            // Essay Preview
-            _buildSectionHeader('Essay'),
-            const Text(
-              'Explain why you should take Bachelor of Science in Computer Science',
-              style: TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              height: 150,
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: const Text(
-                'Enter your answer here...',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
+            ...questions.map((q) {
+              if (q.type == 'MULTIPLE CHOICE') {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionHeader('Multiple Choice'),
+                    _buildQuestionCard(
+                      question: q.question,
+                      options: q.options ?? [],
+                      correctAnswer: q.answer,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                );
+              } else if (q.type == 'TRUE OR FALSE') {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionHeader('TRUE or FALSE'),
+                    Text(
+                      q.question.toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        _buildToggleButton(
+                          'TRUE',
+                          isSelected: q.answer == 'TRUE',
+                        ),
+                        const SizedBox(width: 12),
+                        _buildToggleButton(
+                          'FALSE',
+                          isSelected: q.answer == 'FALSE',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
+                  ],
+                );
+              } else if (q.type == 'ENUMERATION') {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionHeader('Enumeration'),
+                    Text(q.question, style: const TextStyle(fontSize: 16)),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Text(
+                        q.answer,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                  ],
+                );
+              } else {
+                // Identification
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionHeader('Identification'),
+                    _buildPillButton(q.question),
+                    const SizedBox(height: 12),
+                    _buildQuestionInput(question: 'Answer:', answer: q.answer),
+                    const SizedBox(height: 32),
+                  ],
+                );
+              }
+            }).toList(),
 
             const SizedBox(height: 48),
 
@@ -124,9 +141,40 @@ class ExamPreviewScreen extends StatelessWidget {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Navigate back to Assignments List
-                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  onPressed: () async {
+                    try {
+                      await FirebaseFirestore.instance
+                          .collection('assignments')
+                          .add({
+                            'classCode': classCode,
+                            'title': title,
+                            'teacherName': teacherName,
+                            'dueDate': dueDate,
+                            'type': 'EXAM',
+                            'createdAt': FieldValue.serverTimestamp(),
+                            'questions': questions
+                                .map(
+                                  (q) => {
+                                    'type': q.type,
+                                    'question': q.question,
+                                    'options': q.options,
+                                    'answer': q.answer,
+                                  },
+                                )
+                                .toList(),
+                          });
+                      if (context.mounted) {
+                        Navigator.of(
+                          context,
+                        ).popUntil((route) => route.isFirst);
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error saving exam: $e')),
+                        );
+                      }
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4CAF50),

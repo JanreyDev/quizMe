@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import 'choose_assignment_type_screen.dart';
 
 class AssignmentsListScreen extends StatelessWidget {
@@ -49,27 +51,63 @@ class AssignmentsListScreen extends StatelessWidget {
           ),
           // Assignment Cards List
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              children: [
-                _buildAssignmentCard(
-                  title: 'Exam',
-                  subtitle: 'QuizMe',
-                  dueDate: 'Aug 14, 11:59 PM',
-                ),
-                const SizedBox(height: 12),
-                _buildAssignmentCard(
-                  title: 'SE 101 Essay',
-                  subtitle: 'Modern Software Analysis',
-                  dueDate: 'Aug 11, 11:59 PM',
-                ),
-                const SizedBox(height: 12),
-                _buildAssignmentCard(
-                  title: 'Math 102',
-                  subtitle: 'Trigonometry Practice Quiz',
-                  dueDate: 'Aug 15, 9:00 PM',
-                ),
-              ],
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('assignments')
+                  .where('classCode', isEqualTo: classCode)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final docs = snapshot.data?.docs ?? [];
+                if (docs.isEmpty) {
+                  return const Center(child: Text('No assignments found.'));
+                }
+
+                // Hotfix: Sort client-side to avoid missing index error
+                final sortedDocs = List<QueryDocumentSnapshot>.from(docs);
+                sortedDocs.sort((a, b) {
+                  final aData = a.data() as Map<String, dynamic>;
+                  final bData = b.data() as Map<String, dynamic>;
+                  final aTime = aData['createdAt'] as Timestamp?;
+                  final bTime = bData['createdAt'] as Timestamp?;
+                  if (aTime == null) return 1;
+                  if (bTime == null) return -1;
+                  return bTime.compareTo(aTime);
+                });
+
+                return ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  itemCount: sortedDocs.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final data =
+                        sortedDocs[index].data() as Map<String, dynamic>;
+                    final title = data['title'] ?? 'Untitled';
+                    final type = data['type'] ?? 'Assignment';
+                    final dueDate = data['dueDate'] as Timestamp?;
+
+                    String formattedDate = 'N/A';
+                    if (dueDate != null) {
+                      formattedDate = DateFormat(
+                        'MMM dd, hh:mm a',
+                      ).format(dueDate.toDate());
+                    }
+
+                    return _buildAssignmentCard(
+                      title: type,
+                      subtitle: title,
+                      dueDate: formattedDate,
+                    );
+                  },
+                );
+              },
             ),
           ),
           // Bottom Buttons

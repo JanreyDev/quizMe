@@ -128,8 +128,11 @@ class _ChooseExamTypeScreenState extends State<ChooseExamTypeScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) =>
-                          CreateExamDetailsScreen(classCode: widget.classCode),
+                      builder: (context) => CreateExamDetailsScreen(
+                        classCode: widget.classCode,
+                        selectedTypes: _selectedTypes,
+                        itemCount: _selectedItemCount,
+                      ),
                     ),
                   );
                 },

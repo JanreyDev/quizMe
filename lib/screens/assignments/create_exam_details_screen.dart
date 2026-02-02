@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
-import 'exam_preview_screen.dart';
+import 'add_questions_screen.dart';
 
 class CreateExamDetailsScreen extends StatefulWidget {
   final String classCode;
+  final Set<String> selectedTypes;
+  final String itemCount;
 
-  const CreateExamDetailsScreen({super.key, required this.classCode});
+  const CreateExamDetailsScreen({
+    super.key,
+    required this.classCode,
+    required this.selectedTypes,
+    required this.itemCount,
+  });
 
   @override
   State<CreateExamDetailsScreen> createState() =>
@@ -128,11 +135,25 @@ class _CreateExamDetailsScreenState extends State<CreateExamDetailsScreen> {
                 width: 200,
                 child: ElevatedButton(
                   onPressed: () {
+                    if (_selectedDate == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please select a due date'),
+                        ),
+                      );
+                      return;
+                    }
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            ExamPreviewScreen(classCode: widget.classCode),
+                        builder: (context) => AddQuestionsScreen(
+                          classCode: widget.classCode,
+                          selectedTypes: widget.selectedTypes,
+                          itemCount: widget.itemCount,
+                          title: _titleController.text,
+                          teacherName: _nameController.text,
+                          dueDate: _selectedDate!,
+                        ),
                       ),
                     );
                   },
