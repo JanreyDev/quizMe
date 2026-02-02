@@ -22,6 +22,8 @@ class AddQuestionsScreen extends StatefulWidget {
   final String title;
   final String teacherName;
   final DateTime dueDate;
+  final String? existingAssignmentId;
+  final List<Question>? existingQuestions;
 
   const AddQuestionsScreen({
     super.key,
@@ -31,6 +33,8 @@ class AddQuestionsScreen extends StatefulWidget {
     required this.title,
     required this.teacherName,
     required this.dueDate,
+    this.existingAssignmentId,
+    this.existingQuestions,
   });
 
   @override
@@ -40,6 +44,14 @@ class AddQuestionsScreen extends StatefulWidget {
 class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
   final List<Question> _questions = [];
   String? _currentlyAddingType;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existingQuestions != null) {
+      _questions.addAll(widget.existingQuestions!);
+    }
+  }
 
   // Controllers for the form
   final TextEditingController _questionController = TextEditingController();
@@ -181,6 +193,7 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
                           teacherName: widget.teacherName,
                           dueDate: widget.dueDate,
                           questions: _questions,
+                          existingAssignmentId: widget.existingAssignmentId,
                         ),
                       ),
                     );

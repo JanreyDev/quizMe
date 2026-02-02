@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'choose_assignment_type_screen.dart';
+import 'submissions_view_screen.dart';
+import 'create_exam_details_screen.dart';
 
 class AssignmentsListScreen extends StatefulWidget {
   final String classCode;
@@ -20,6 +22,48 @@ class AssignmentsListScreen extends StatefulWidget {
 class _AssignmentsListScreenState extends State<AssignmentsListScreen> {
   String? _selectedAssignmentId;
   bool _isPublishing = false;
+
+  Future<void> _deleteAssignment(String docId, String title) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Assignment?'),
+        content: Text(
+          'Are you sure you want to delete "$title"? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('CANCEL'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('DELETE', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('assignments')
+            .doc(docId)
+            .delete();
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Assignment deleted')));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error deleting: $e')));
+        }
+      }
+    }
+  }
 
   Future<void> _publishAssignment() async {
     if (_selectedAssignmentId == null) return;
@@ -148,11 +192,13 @@ class _AssignmentsListScreenState extends State<AssignmentsListScreen> {
                         });
                       },
                       child: _buildAssignmentCard(
+                        docId: docId,
                         title: type,
                         subtitle: title,
                         dueDate: formattedDate,
                         isSelected: _selectedAssignmentId == docId,
                         isPublished: isPublished,
+                        fullData: data,
                       ),
                     );
                   },
@@ -238,62 +284,174 @@ class _AssignmentsListScreenState extends State<AssignmentsListScreen> {
   }
 
   Widget _buildAssignmentCard({
+    required String docId,
     required String title,
     required String subtitle,
     required String dueDate,
     required bool isSelected,
     required bool isPublished,
+    required Map<String, dynamic> fullData,
   }) {
+    // Determine icon based on type
+    IconData iconData = Icons.assignment;
+    if (title.toUpperCase().contains('QUIZ')) {
+      iconData = Icons.quiz;
+    } else if (title.toUpperCase().contains('ACTIVITY')) {
+      iconData = Icons.edit_document;
+    } else if (title.toUpperCase().contains('EXAM')) {
+      iconData = Icons.assignment;
+    }
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      height: 90,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isSelected
               ? [const Color(0xFF4FC3F7), const Color(0xFF03A9F4)]
-              : [const Color(0xFF64B5F6), const Color(0xFF42A5F5)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+              : [Colors.grey[400]!, Colors.grey[600]!],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
         border: isSelected
             ? Border.all(color: Colors.white, width: 2)
             : isPublished
             ? Border.all(color: Colors.greenAccent, width: 2)
             : null,
-        boxShadow: isSelected
-            ? [
-                BoxShadow(
-                  color: Colors.blue.withOpacity(0.4),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : null,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+          if (isSelected)
+            BoxShadow(
+              color: Colors.blue.withOpacity(0.4),
+              blurRadius: 10,
+              spreadRadius: 2,
+            ),
+        ],
       ),
       child: Row(
         children: [
+          const SizedBox(width: 12),
+          // Circular White Icon Container
+          Container(
+            width: 56,
+            height: 56,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(iconData, color: Colors.grey[700], size: 28),
+          ),
+          const SizedBox(width: 16),
+          // Text Details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  '$title — $subtitle',
+                  subtitle,
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
                 Text(
-                  'Due $dueDate',
-                  style: const TextStyle(fontSize: 14, color: Colors.white70),
+                  'Due: $dueDate',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[800],
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
           ),
           if (isPublished)
-            const Icon(Icons.check_circle, color: Colors.greenAccent, size: 24),
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: Icon(
+                Icons.check_circle,
+                color: Colors.greenAccent,
+                size: 24,
+              ),
+            ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.white),
+            onSelected: (value) {
+              if (value == 'edit') {
+                final questions = fullData['questions'] as List? ?? [];
+                final types = questions
+                    .map((q) => q['type'] as String?)
+                    .whereType<String>()
+                    .toSet();
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CreateExamDetailsScreen(
+                      classCode: widget.classCode,
+                      selectedTypes: types,
+                      itemCount: questions.length.toString(),
+                      existingAssignmentId: docId,
+                      existingData: fullData,
+                    ),
+                  ),
+                );
+              } else if (value == 'delete') {
+                _deleteAssignment(docId, subtitle);
+              } else if (value == 'view') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SubmissionsViewScreen(
+                      assignmentId: docId,
+                      assignmentTitle: subtitle,
+                    ),
+                  ),
+                );
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'view',
+                child: Row(
+                  children: [
+                    Icon(Icons.people, size: 20),
+                    SizedBox(width: 8),
+                    Text('View Submissions'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit, size: 20),
+                    SizedBox(width: 8),
+                    Text('Edit'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete, size: 20, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Delete', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 4),
         ],
       ),
     );

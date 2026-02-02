@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../assignments/student_assignments_screen.dart';
+import '../class/student_subject_view_screen.dart';
 
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
@@ -224,7 +224,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => StudentAssignmentsScreen(
+                                builder: (context) => StudentSubjectViewScreen(
                                   classCode: classData['classCode'] ?? '',
                                   className: classData['name'] ?? '',
                                 ),

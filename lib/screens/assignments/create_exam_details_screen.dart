@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'add_questions_screen.dart';
 
 class CreateExamDetailsScreen extends StatefulWidget {
   final String classCode;
   final Set<String> selectedTypes;
   final String itemCount;
+  final String? existingAssignmentId;
+  final Map<String, dynamic>? existingData;
 
   const CreateExamDetailsScreen({
     super.key,
     required this.classCode,
     required this.selectedTypes,
     required this.itemCount,
+    this.existingAssignmentId,
+    this.existingData,
   });
 
   @override
@@ -22,6 +27,19 @@ class _CreateExamDetailsScreenState extends State<CreateExamDetailsScreen> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   DateTime? _selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existingData != null) {
+      _titleController.text = widget.existingData!['title'] ?? '';
+      _nameController.text = widget.existingData!['teacherName'] ?? '';
+      final dueDate = widget.existingData!['dueDate'] as Timestamp?;
+      if (dueDate != null) {
+        _selectedDate = dueDate.toDate();
+      }
+    }
+  }
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -153,6 +171,19 @@ class _CreateExamDetailsScreenState extends State<CreateExamDetailsScreen> {
                           title: _titleController.text,
                           teacherName: _nameController.text,
                           dueDate: _selectedDate!,
+                          existingAssignmentId: widget.existingAssignmentId,
+                          existingQuestions:
+                              (widget.existingData?['questions'] as List?)
+                                  ?.map(
+                                    (q) => Question(
+                                      type: q['type'] ?? '',
+                                      question: q['question'] ?? '',
+                                      options: (q['options'] as List?)
+                                          ?.cast<String>(),
+                                      answer: q['answer'] ?? '',
+                                    ),
+                                  )
+                                  .toList(),
                         ),
                       ),
                     );

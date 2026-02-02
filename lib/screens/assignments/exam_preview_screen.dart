@@ -16,7 +16,10 @@ class ExamPreviewScreen extends StatelessWidget {
     required this.teacherName,
     required this.dueDate,
     required this.questions,
+    this.existingAssignmentId,
   });
+
+  final String? existingAssignmentId;
 
   @override
   Widget build(BuildContext context) {
@@ -143,27 +146,37 @@ class ExamPreviewScreen extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () async {
                     try {
-                      await FirebaseFirestore.instance
-                          .collection('assignments')
-                          .add({
-                            'classCode': classCode,
-                            'title': title,
-                            'teacherName': teacherName,
-                            'dueDate': dueDate,
-                            'type': 'EXAM',
-                            'isPublished': false,
-                            'createdAt': FieldValue.serverTimestamp(),
-                            'questions': questions
-                                .map(
-                                  (q) => {
-                                    'type': q.type,
-                                    'question': q.question,
-                                    'options': q.options,
-                                    'answer': q.answer,
-                                  },
-                                )
-                                .toList(),
-                          });
+                      final assignmentData = {
+                        'classCode': classCode,
+                        'title': title,
+                        'teacherName': teacherName,
+                        'dueDate': dueDate,
+                        'type': 'EXAM',
+                        'isPublished': false,
+                        'questions': questions
+                            .map(
+                              (q) => {
+                                'type': q.type,
+                                'question': q.question,
+                                'options': q.options,
+                                'answer': q.answer,
+                              },
+                            )
+                            .toList(),
+                      };
+
+                      if (existingAssignmentId != null) {
+                        await FirebaseFirestore.instance
+                            .collection('assignments')
+                            .doc(existingAssignmentId)
+                            .update(assignmentData);
+                      } else {
+                        assignmentData['createdAt'] =
+                            FieldValue.serverTimestamp();
+                        await FirebaseFirestore.instance
+                            .collection('assignments')
+                            .add(assignmentData);
+                      }
                       if (context.mounted) {
                         Navigator.of(
                           context,
