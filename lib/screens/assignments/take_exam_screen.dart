@@ -29,6 +29,7 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   bool _isSubmitted = false;
+  final Map<int, bool?> _manualGrades = {};
 
   @override
   void initState() {
@@ -72,11 +73,32 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                   submissionQuery.docs.first.data() as Map<String, dynamic>?;
               final answers =
                   subData?['answers'] as Map<String, dynamic>? ?? {};
+              final existingManualGrades =
+                  subData?['manualGrades'] as Map<String, dynamic>? ?? {};
 
               // Convert String keys back to int for our internal map
               answers.forEach((key, value) {
                 _answers[int.parse(key)] = value;
               });
+
+              // Initialize manual grades
+              for (int i = 0; i < questions.length; i++) {
+                final q = questions[i] as Map<String, dynamic>;
+                final type = q['type'];
+
+                // If we have saved manual grades, use them
+                if (existingManualGrades.containsKey(i.toString())) {
+                  _manualGrades[i] =
+                      existingManualGrades[i.toString()] as bool?;
+                } else {
+                  // Otherwise, auto-grade if objective, or set to null
+                  if (type == 'MULTIPLE CHOICE' || type == 'TRUE OR FALSE') {
+                    _manualGrades[i] = _answers[i] == q['answer'];
+                  } else {
+                    _manualGrades[i] = null; // Pending
+                  }
+                }
+              }
             }
           }
           _isSubmitted = true; // For UI purposes
@@ -100,9 +122,10 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
   bool _allQuestionsAnswered() {
     if (_questions.isEmpty) return false;
     for (int i = 0; i < _questions.length; i++) {
+      final ans = _answers[i];
       if (!_answers.containsKey(i) ||
-          _answers[i] == null ||
-          (_answers[i] is String && _answers[i].toString().trim().isEmpty)) {
+          ans == null ||
+          (ans is String && ans.trim().isEmpty)) {
         return false;
       }
     }
@@ -118,26 +141,175 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
   }
 
   int _getScore() {
-    int score = 0;
-    for (int i = 0; i < _questions.length; i++) {
-      final q = _questions[i] as Map<String, dynamic>;
-      if (q['type'] == 'MULTIPLE CHOICE' || q['type'] == 'TRUE OR FALSE') {
-        if (_answers[i] == q['answer']) {
-          score++;
-        }
-      } else if (q['type'] == 'IDENTIFICATION' || q['type'] == 'ENUMERATION') {
-        final studentAns = _answers[i]?.toString().trim().toLowerCase();
-        final correctAns = q['answer']?.toString().trim().toLowerCase();
-        if (studentAns == correctAns) {
-          score++;
-        }
-      }
+    try {
+      if (_manualGrades.isEmpty) return 0;
+      return _manualGrades.values.where((v) => v == true).length;
+    } catch (e) {
+      debugPrint('Error in _getScore: $e');
+      return 0;
     }
-    return score;
   }
 
   int _getTotalGradable() {
     return _questions.length;
+  }
+
+  Future<void> _saveGrades() async {
+    setState(() => _isSubmitting = true);
+    try {
+      final targetStudentId =
+          widget.studentId ?? FirebaseAuth.instance.currentUser?.uid;
+      if (targetStudentId == null) throw 'No student identified';
+
+      final submissionQuery = await FirebaseFirestore.instance
+          .collection('submissions')
+          .where('assignmentId', isEqualTo: widget.assignmentId)
+          .where('studentId', isEqualTo: targetStudentId)
+          .limit(1)
+          .get();
+
+      if (submissionQuery.docs.isEmpty) throw 'Submission not found';
+
+      final docId = submissionQuery.docs.first.id;
+
+      // Convert manualGrades to String keys for Firestore
+      final stringGrades = _manualGrades.map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+
+      await FirebaseFirestore.instance
+          .collection('submissions')
+          .doc(docId)
+          .update({
+            'manualGrades': stringGrades,
+            'score': _getScore(),
+            'gradedAt': FieldValue.serverTimestamp(),
+          });
+
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Grades saved successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error saving grades: $e')));
+      }
+    }
+  }
+
+  void _showGradingModal(int index, Map<String, dynamic> q) {
+    final studentAns = _answers[index]?.toString() ?? 'No answer';
+    final correctAns = q['answer']?.toString() ?? 'N/A';
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final isCorrect = _manualGrades[index];
+
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Review Answer',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Question ${index + 1}:',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(q['question'] ?? ''),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Student\'s Answer:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    studentAns,
+                    style: TextStyle(
+                      color: isCorrect == true
+                          ? Colors.green
+                          : isCorrect == false
+                          ? Colors.red
+                          : Colors.black,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Correct Answer:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    correctAns,
+                    style: const TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            setState(() => _manualGrades[index] = false);
+                            setModalState(() {});
+                            Navigator.pop(context);
+                          },
+                          icon: const Icon(Icons.close),
+                          label: const Text('Mark Wrong'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red[50],
+                            foregroundColor: Colors.red,
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            setState(() => _manualGrades[index] = true);
+                            setModalState(() {});
+                            Navigator.pop(context);
+                          },
+                          icon: const Icon(Icons.check),
+                          label: const Text('Mark Correct'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green[50],
+                            foregroundColor: Colors.green,
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -201,6 +373,37 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                     ),
                   ),
                 Expanded(child: _buildBody()),
+                if (isTeacherViewing)
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _isSubmitting ? null : _saveGrades,
+                        icon: _isSubmitting
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.save),
+                        label: Text(
+                          _isSubmitting ? 'Saving...' : 'Save Grading Changes',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue[600],
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
     );
@@ -348,95 +551,119 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
   Widget _buildQuestionCard(int index, Map<String, dynamic> q) {
     final type = q['type'] as String;
     final questionText = q['question'] as String;
-
-    final studentAns = _answers[index];
     final correctAns = q['answer'];
-    final isTeacherViewing = widget.studentId != null;
-    final isGradable = type == 'MULTIPLE CHOICE' || type == 'TRUE OR FALSE';
 
-    // For Identification/Enumeration, check equality
+    final isTeacherViewing = widget.studentId != null;
+
     bool isCorrect = false;
-    if (isTeacherViewing) {
-      if (isGradable) {
-        isCorrect = studentAns == correctAns;
-      } else {
-        isCorrect =
-            studentAns?.toString().trim().toLowerCase() ==
-            correctAns?.toString().trim().toLowerCase();
-      }
+    bool isWrong = false;
+    bool isPending = true;
+
+    try {
+      final manualGrade = _manualGrades[index];
+      isCorrect = manualGrade == true;
+      isWrong = manualGrade == false;
+      isPending = manualGrade == null;
+    } catch (e) {
+      debugPrint('Error accessing manual grade for index $index: $e');
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 24),
-      padding: isTeacherViewing ? const EdgeInsets.all(16) : null,
-      decoration: isTeacherViewing
-          ? BoxDecoration(
-              color: isCorrect ? Colors.green.shade50 : Colors.red.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isCorrect ? Colors.green.shade200 : Colors.red.shade200,
-              ),
-            )
-          : null,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Question ${index + 1}',
-                style: TextStyle(
-                  color: Colors.blue[700],
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+    return InkWell(
+      onTap: isTeacherViewing ? () => _showGradingModal(index, q) : null,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 24),
+        padding: isTeacherViewing ? const EdgeInsets.all(16) : null,
+        decoration: isTeacherViewing
+            ? BoxDecoration(
+                color: isCorrect
+                    ? Colors.green.shade50
+                    : isWrong
+                    ? Colors.red.shade50
+                    : Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isCorrect
+                      ? Colors.green.shade200
+                      : isWrong
+                      ? Colors.red.shade200
+                      : Colors.grey.shade300,
+                  width: isPending ? 1 : 2,
                 ),
-              ),
-              if (isTeacherViewing)
-                Icon(
-                  isCorrect ? Icons.check_circle : Icons.cancel,
-                  color: isCorrect ? Colors.green : Colors.red,
-                  size: 20,
+              )
+            : null,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Question ${index + 1}',
+                  style: TextStyle(
+                    color: Colors.blue[700],
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                 ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            questionText,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-          ),
-          if (isTeacherViewing && !isCorrect && isGradable)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                'Correct: $correctAns',
-                style: const TextStyle(
-                  color: Colors.green,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+                if (isTeacherViewing)
+                  Icon(
+                    isCorrect
+                        ? Icons.check_circle
+                        : isWrong
+                        ? Icons.cancel
+                        : Icons.help_outline,
+                    color: isCorrect
+                        ? Colors.green
+                        : isWrong
+                        ? Colors.red
+                        : Colors.grey,
+                    size: 20,
+                  ),
+              ],
             ),
-          const SizedBox(height: 16),
-          if (type == 'MULTIPLE CHOICE')
-            _buildMultipleChoice(index, q['options'] as List? ?? [])
-          else if (type == 'TRUE OR FALSE')
-            _buildTrueFalse(index)
-          else if (type == 'IDENTIFICATION')
-            _buildIdentification(index)
-          else if (type == 'ENUMERATION')
-            _buildIdentification(
-              index,
-            ), // For now, use text input for enumeration
-          if (!isTeacherViewing) const Divider(height: 40),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              questionText,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+            ),
+            if (isTeacherViewing &&
+                !isCorrect &&
+                (type == 'MULTIPLE CHOICE' || type == 'TRUE OR FALSE'))
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Correct: $correctAns',
+                  style: const TextStyle(
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 16),
+            if (type == 'MULTIPLE CHOICE')
+              _buildMultipleChoice(index, q['options'] as List? ?? [])
+            else if (type == 'TRUE OR FALSE')
+              _buildTrueFalse(index)
+            else if (type == 'IDENTIFICATION')
+              _buildIdentification(index)
+            else if (type == 'ENUMERATION')
+              _buildIdentification(index),
+            if (!isTeacherViewing) const Divider(height: 40),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildMultipleChoice(int qIndex, List options) {
     final studentAns = _answers[qIndex];
-    final correctAns = _questions[qIndex]['answer'];
+    Map<String, dynamic>? q;
+    if (qIndex >= 0 && qIndex < _questions.length) {
+      q = _questions[qIndex] as Map<String, dynamic>?;
+    }
+    final correctAns = q?['answer'];
     final isTeacherViewing = widget.studentId != null;
+    final manualGrade = _manualGrades[qIndex];
 
     return Column(
       children: options.map((opt) {
@@ -450,8 +677,11 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
           if (isCorrectChoice) {
             textColor = Colors.green[700];
             fontWeight = FontWeight.bold;
-          } else if (isSelected && !isCorrectChoice) {
+          } else if (isSelected && manualGrade == false) {
             textColor = Colors.red[700];
+            fontWeight = FontWeight.bold;
+          } else if (isSelected && manualGrade == true) {
+            textColor = Colors.green[700];
             fontWeight = FontWeight.bold;
           }
         }
@@ -463,10 +693,14 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
           ),
           value: optionStr,
           groupValue: studentAns,
-          activeColor: isTeacherViewing && isCorrectChoice
-              ? Colors.green
-              : isTeacherViewing && isSelected
-              ? Colors.red
+          activeColor: isTeacherViewing
+              ? (manualGrade == true && isSelected
+                    ? Colors.green
+                    : manualGrade == false && isSelected
+                    ? Colors.red
+                    : isCorrectChoice
+                    ? Colors.green
+                    : null)
               : null,
           onChanged: widget.isReadOnly
               ? null
@@ -489,8 +723,13 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
 
   Widget _buildChoiceChip(int qIndex, String label) {
     final studentAns = _answers[qIndex];
-    final correctAns = _questions[qIndex]['answer'];
+    Map<String, dynamic>? q;
+    if (qIndex >= 0 && qIndex < _questions.length) {
+      q = _questions[qIndex] as Map<String, dynamic>?;
+    }
+    final correctAns = q?['answer'];
     final isTeacherViewing = widget.studentId != null;
+    final manualGrade = _manualGrades[qIndex];
     final isSelected = studentAns == label;
     final isCorrectChoice = label == correctAns;
 
@@ -501,9 +740,12 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
       if (isCorrectChoice) {
         selectedColor = Colors.green[200];
         labelColor = Colors.green[900];
-      } else if (isSelected && !isCorrectChoice) {
+      } else if (isSelected && manualGrade == false) {
         selectedColor = Colors.red[200];
         labelColor = Colors.red[900];
+      } else if (isSelected && manualGrade == true) {
+        selectedColor = Colors.green[200];
+        labelColor = Colors.green[900];
       }
     }
 
