@@ -32,79 +32,126 @@ class PeopleListScreen extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // People Title
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Text(
-              'People',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
+      body: FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance
+            .collection('classes')
+            .doc(classId)
+            .get(),
+        builder: (context, classSnapshot) {
+          if (classSnapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (classSnapshot.hasError) {
+            return Center(child: Text('Error: ${classSnapshot.error}'));
+          }
+
+          final classData = classSnapshot.data?.data() as Map<String, dynamic>?;
+          final teacherId = classData?['teacherId'];
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // People Title
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: Text(
+                  'People',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
               ),
-            ),
-          ),
-          // People List
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('classes')
-                  .doc(classId)
-                  .collection('students')
-                  .orderBy('enrolledAt', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'No students enrolled yet',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                  );
-                }
+              // People List
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('classes')
+                      .doc(classId)
+                      .collection('students')
+                      .orderBy('enrolledAt', descending: true)
+                      .snapshots(),
+                  builder: (context, studentSnapshot) {
+                    if (studentSnapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (studentSnapshot.hasError) {
+                      return Center(
+                        child: Text('Error: ${studentSnapshot.error}'),
+                      );
+                    }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  itemCount: snapshot.data!.docs.length,
-                  itemBuilder: (context, index) {
-                    final studentEnrollment = snapshot.data!.docs[index];
-                    final studentId = studentEnrollment.id;
+                    final studentDocs = studentSnapshot.data?.docs ?? [];
 
-                    return FutureBuilder<DocumentSnapshot>(
-                      future: FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(studentId)
-                          .get(),
-                      builder: (context, userSnapshot) {
-                        if (!userSnapshot.hasData) {
-                          return const SizedBox.shrink();
+                    return ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      itemCount:
+                          (teacherId != null ? 1 : 0) + studentDocs.length,
+                      itemBuilder: (context, index) {
+                        // Show Teacher first
+                        if (teacherId != null && index == 0) {
+                          return FutureBuilder<DocumentSnapshot>(
+                            future: FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(teacherId)
+                                .get(),
+                            builder: (context, teacherSnapshot) {
+                              if (!teacherSnapshot.hasData) {
+                                return const SizedBox.shrink();
+                              }
+                              final teacherData =
+                                  teacherSnapshot.data!.data()
+                                      as Map<String, dynamic>?;
+                              final teacherName =
+                                  teacherData?['name'] ?? 'Unknown Teacher';
+
+                              return _buildPersonItem(
+                                name: teacherName,
+                                role: 'Teacher',
+                                context: context,
+                              );
+                            },
+                          );
                         }
-                        final userData =
-                            userSnapshot.data!.data() as Map<String, dynamic>?;
-                        final name = userData?['name'] ?? 'Unknown Student';
 
-                        return _buildPersonItem(
-                          name: name,
-                          role: 'Student',
-                          context: context,
+                        // Show Students
+                        final studentIndex = teacherId != null
+                            ? index - 1
+                            : index;
+                        final studentEnrollment = studentDocs[studentIndex];
+                        final studentId = studentEnrollment.id;
+
+                        return FutureBuilder<DocumentSnapshot>(
+                          future: FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(studentId)
+                              .get(),
+                          builder: (context, userSnapshot) {
+                            if (!userSnapshot.hasData) {
+                              return const SizedBox.shrink();
+                            }
+                            final userData =
+                                userSnapshot.data!.data()
+                                    as Map<String, dynamic>?;
+                            final name = userData?['name'] ?? 'Unknown Student';
+
+                            return _buildPersonItem(
+                              name: name,
+                              role: 'Student',
+                              context: context,
+                            );
+                          },
                         );
                       },
                     );
                   },
-                );
-              },
-            ),
-          ),
-        ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
