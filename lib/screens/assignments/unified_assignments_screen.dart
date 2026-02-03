@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'choose_questions_type_screen.dart';
+import 'choose_assignment_type_screen.dart';
 import 'submissions_view_screen.dart';
 import 'create_material_details_screen.dart';
 
@@ -474,50 +474,11 @@ class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
   }
 
   void _showCreateOptions() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'What would you like to create?',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            ..._categories
-                .map(
-                  (cat) => ListTile(
-                    leading: Icon(
-                      cat['name'] == 'quizzes'
-                          ? Icons.quiz
-                          : cat['name'] == 'activities'
-                          ? Icons.edit_document
-                          : Icons.assignment,
-                    ),
-                    title: Text(cat['title']!),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ChooseQuestionsTypeScreen(
-                            classCode: widget.classCode,
-                            collectionName: cat['name']!,
-                            materialTitle: cat['title']!,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                )
-                .toList(),
-          ],
-        ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            ChooseAssignmentTypeScreen(classCode: widget.classCode),
       ),
     );
   }
