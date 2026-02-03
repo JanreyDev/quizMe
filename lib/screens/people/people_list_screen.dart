@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PeopleListScreen extends StatelessWidget {
   final String classCode;
@@ -48,30 +49,59 @@ class PeopleListScreen extends StatelessWidget {
           ),
           // People List
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              children: [
-                _buildPersonItem(
-                  name: 'Julia Lyde Q. Dulog',
-                  role: 'Student',
-                  context: context,
-                ),
-                _buildPersonItem(
-                  name: 'Jeanne Mhikaela S. Linan',
-                  role: 'Student',
-                  context: context,
-                ),
-                _buildPersonItem(
-                  name: 'Mark Anthony F. Araracap',
-                  role: 'Student',
-                  context: context,
-                ),
-                _buildPersonItem(
-                  name: 'Iratus Glenn Cruz',
-                  role: 'Teacher',
-                  context: context,
-                ),
-              ],
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('classes')
+                  .doc(classId)
+                  .collection('students')
+                  .orderBy('enrolledAt', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'No students enrolled yet',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  itemCount: snapshot.data!.docs.length,
+                  itemBuilder: (context, index) {
+                    final studentEnrollment = snapshot.data!.docs[index];
+                    final studentId = studentEnrollment.id;
+
+                    return FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(studentId)
+                          .get(),
+                      builder: (context, userSnapshot) {
+                        if (!userSnapshot.hasData) {
+                          return const SizedBox.shrink();
+                        }
+                        final userData =
+                            userSnapshot.data!.data() as Map<String, dynamic>?;
+                        final name = userData?['name'] ?? 'Unknown Student';
+
+                        return _buildPersonItem(
+                          name: name,
+                          role: 'Student',
+                          context: context,
+                        );
+                      },
+                    );
+                  },
+                );
+              },
             ),
           ),
         ],
