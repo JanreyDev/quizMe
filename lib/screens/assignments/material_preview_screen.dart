@@ -2,27 +2,35 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'add_questions_screen.dart';
 
-class ExamPreviewScreen extends StatelessWidget {
+class MaterialPreviewScreen extends StatelessWidget {
   final String classCode;
   final String title;
   final String teacherName;
   final DateTime dueDate;
   final List<Question> questions;
+  final String collectionName;
+  final String materialTitle;
+  final String? existingMaterialId;
 
-  const ExamPreviewScreen({
+  const MaterialPreviewScreen({
     super.key,
     required this.classCode,
     required this.title,
     required this.teacherName,
     required this.dueDate,
     required this.questions,
-    this.existingAssignmentId,
+    required this.collectionName,
+    required this.materialTitle,
+    this.existingMaterialId,
   });
-
-  final String? existingAssignmentId;
 
   @override
   Widget build(BuildContext context) {
+    String displayLabel = materialTitle;
+    if (displayLabel.endsWith('s')) {
+      displayLabel = displayLabel.substring(0, displayLabel.length - 1);
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -47,9 +55,9 @@ class ExamPreviewScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Exam Type:',
-              style: TextStyle(
+            Text(
+              '$displayLabel Type:',
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
@@ -146,12 +154,11 @@ class ExamPreviewScreen extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () async {
                     try {
-                      final assignmentData = {
+                      final materialData = {
                         'classCode': classCode,
                         'title': title,
                         'teacherName': teacherName,
                         'dueDate': dueDate,
-                        'type': 'EXAM',
                         'isPublished': false,
                         'questions': questions
                             .map(
@@ -165,17 +172,17 @@ class ExamPreviewScreen extends StatelessWidget {
                             .toList(),
                       };
 
-                      if (existingAssignmentId != null) {
+                      if (existingMaterialId != null) {
                         await FirebaseFirestore.instance
-                            .collection('assignments')
-                            .doc(existingAssignmentId)
-                            .update(assignmentData);
+                            .collection(collectionName)
+                            .doc(existingMaterialId)
+                            .update(materialData);
                       } else {
-                        assignmentData['createdAt'] =
+                        materialData['createdAt'] =
                             FieldValue.serverTimestamp();
                         await FirebaseFirestore.instance
-                            .collection('assignments')
-                            .add(assignmentData);
+                            .collection(collectionName)
+                            .add(materialData);
                       }
                       if (context.mounted) {
                         Navigator.of(
@@ -185,7 +192,9 @@ class ExamPreviewScreen extends StatelessWidget {
                     } catch (e) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Error saving exam: $e')),
+                          SnackBar(
+                            content: Text('Error saving $displayLabel: $e'),
+                          ),
                         );
                       }
                     }
@@ -199,9 +208,12 @@ class ExamPreviewScreen extends StatelessWidget {
                     ),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    'Save as document',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  child: Text(
+                    'Save as ${displayLabel.toLowerCase()}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
@@ -326,17 +338,6 @@ class ExamPreviewScreen extends StatelessWidget {
           color: Colors.white,
           fontWeight: FontWeight.bold,
         ),
-      ),
-    );
-  }
-
-  Widget _buildAnswerLine() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Container(
-        height: 1,
-        width: double.infinity,
-        color: Colors.grey.shade300,
       ),
     );
   }

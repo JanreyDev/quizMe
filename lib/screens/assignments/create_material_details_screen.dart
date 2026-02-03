@@ -2,28 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'add_questions_screen.dart';
 
-class CreateExamDetailsScreen extends StatefulWidget {
+class CreateMaterialDetailsScreen extends StatefulWidget {
   final String classCode;
   final Set<String> selectedTypes;
   final String itemCount;
-  final String? existingAssignmentId;
+  final String collectionName;
+  final String materialTitle;
+  final String? existingMaterialId;
   final Map<String, dynamic>? existingData;
 
-  const CreateExamDetailsScreen({
+  const CreateMaterialDetailsScreen({
     super.key,
     required this.classCode,
     required this.selectedTypes,
     required this.itemCount,
-    this.existingAssignmentId,
+    required this.collectionName,
+    required this.materialTitle,
+    this.existingMaterialId,
     this.existingData,
   });
 
   @override
-  State<CreateExamDetailsScreen> createState() =>
-      _CreateExamDetailsScreenState();
+  State<CreateMaterialDetailsScreen> createState() =>
+      _CreateMaterialDetailsScreenState();
 }
 
-class _CreateExamDetailsScreenState extends State<CreateExamDetailsScreen> {
+class _CreateMaterialDetailsScreenState
+    extends State<CreateMaterialDetailsScreen> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   DateTime? _selectedDate;
@@ -57,6 +62,11 @@ class _CreateExamDetailsScreenState extends State<CreateExamDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    String displayTitle = widget.materialTitle.toLowerCase();
+    if (displayTitle.endsWith('s')) {
+      displayTitle = displayTitle.substring(0, displayTitle.length - 1);
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -82,9 +92,9 @@ class _CreateExamDetailsScreenState extends State<CreateExamDetailsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
-            const Text(
-              'Create a Title and Name of your exam:',
-              style: TextStyle(
+            Text(
+              'Create a Title and Name of your $displayTitle:',
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
@@ -94,7 +104,7 @@ class _CreateExamDetailsScreenState extends State<CreateExamDetailsScreen> {
             _buildTextField(
               controller: _titleController,
               label: 'Title:',
-              hint: 'Enter exam title',
+              hint: 'Enter $displayTitle title',
             ),
             const SizedBox(height: 16),
             _buildTextField(
@@ -103,9 +113,9 @@ class _CreateExamDetailsScreenState extends State<CreateExamDetailsScreen> {
               hint: 'Enter your name',
             ),
             const SizedBox(height: 32),
-            const Text(
-              'Add the due date of the exam',
-              style: TextStyle(
+            Text(
+              'Add the due date of the $displayTitle',
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
@@ -171,7 +181,9 @@ class _CreateExamDetailsScreenState extends State<CreateExamDetailsScreen> {
                           title: _titleController.text,
                           teacherName: _nameController.text,
                           dueDate: _selectedDate!,
-                          existingAssignmentId: widget.existingAssignmentId,
+                          collectionName: widget.collectionName,
+                          materialTitle: widget.materialTitle,
+                          existingMaterialId: widget.existingMaterialId,
                           existingQuestions:
                               (widget.existingData?['questions'] as List?)
                                   ?.map(

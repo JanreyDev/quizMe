@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'exam_preview_screen.dart';
+import 'material_preview_screen.dart';
 
 class Question {
   final String type;
@@ -22,7 +22,9 @@ class AddQuestionsScreen extends StatefulWidget {
   final String title;
   final String teacherName;
   final DateTime dueDate;
-  final String? existingAssignmentId;
+  final String collectionName;
+  final String materialTitle;
+  final String? existingMaterialId;
   final List<Question>? existingQuestions;
 
   const AddQuestionsScreen({
@@ -33,7 +35,9 @@ class AddQuestionsScreen extends StatefulWidget {
     required this.title,
     required this.teacherName,
     required this.dueDate,
-    this.existingAssignmentId,
+    required this.collectionName,
+    required this.materialTitle,
+    this.existingMaterialId,
     this.existingQuestions,
   });
 
@@ -187,13 +191,15 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => ExamPreviewScreen(
+                        builder: (context) => MaterialPreviewScreen(
                           classCode: widget.classCode,
                           title: widget.title,
                           teacherName: widget.teacherName,
                           dueDate: widget.dueDate,
                           questions: _questions,
-                          existingAssignmentId: widget.existingAssignmentId,
+                          collectionName: widget.collectionName,
+                          materialTitle: widget.materialTitle,
+                          existingMaterialId: widget.existingMaterialId,
                         ),
                       ),
                     );

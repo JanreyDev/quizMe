@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../assignments/student_assignments_screen.dart';
+import '../assignments/student_unified_assignments_screen.dart';
 
 class StudentSubjectViewScreen extends StatelessWidget {
   final String classCode;
@@ -57,17 +57,35 @@ class StudentSubjectViewScreen extends StatelessWidget {
                   _buildMenuOption(
                     context,
                     icon: Icons.assignment_outlined,
-                    title: 'School Works',
+                    title: 'Assignments',
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => StudentAssignmentsScreen(
+                          builder: (context) => StudentUnifiedAssignmentsScreen(
                             classCode: classCode,
                             className: className,
                           ),
                         ),
                       );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildMenuOption(
+                    context,
+                    icon: Icons.menu_book_outlined,
+                    title: 'Modules',
+                    onTap: () {
+                      // Future implementation
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildMenuOption(
+                    context,
+                    icon: Icons.people_outline,
+                    title: 'People',
+                    onTap: () {
+                      // Future implementation
                     },
                   ),
                   const SizedBox(height: 16),

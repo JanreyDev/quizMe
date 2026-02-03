@@ -4,14 +4,18 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'take_exam_screen.dart';
 
-class StudentAssignmentsScreen extends StatelessWidget {
+class StudentMaterialsScreen extends StatelessWidget {
   final String classCode;
   final String className;
+  final String collectionName;
+  final String title;
 
-  const StudentAssignmentsScreen({
+  const StudentMaterialsScreen({
     super.key,
     required this.classCode,
     required this.className,
+    required this.collectionName,
+    required this.title,
   });
 
   @override
@@ -51,11 +55,11 @@ class StudentAssignmentsScreen extends StatelessWidget {
               ),
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Text(
-              'Available Assignments',
-              style: TextStyle(
+              'Available $title',
+              style: const TextStyle(
                 fontSize: 16,
                 color: Colors.grey,
                 fontWeight: FontWeight.w500,
@@ -80,7 +84,6 @@ class StudentAssignmentsScreen extends StatelessWidget {
                         );
                       }
 
-                      // While loading submissions, we can still show a loading indicator or proceed with empty set
                       if (submissionSnapshot.connectionState ==
                           ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
@@ -92,47 +95,37 @@ class StudentAssignmentsScreen extends StatelessWidget {
 
                       return StreamBuilder<QuerySnapshot>(
                         stream: FirebaseFirestore.instance
-                            .collection('assignments')
+                            .collection(collectionName)
                             .where('classCode', isEqualTo: classCode)
                             .where('isPublished', isEqualTo: true)
                             .snapshots(),
-                        builder: (context, assignmentSnapshot) {
-                          if (assignmentSnapshot.hasError) {
+                        builder: (context, materialSnapshot) {
+                          if (materialSnapshot.hasError) {
                             return Center(
-                              child: Text(
-                                'Assignment Error: ${assignmentSnapshot.error}',
-                              ),
+                              child: Text('Error: ${materialSnapshot.error}'),
                             );
                           }
-                          if (assignmentSnapshot.connectionState ==
+                          if (materialSnapshot.connectionState ==
                               ConnectionState.waiting) {
                             return const Center(
                               child: CircularProgressIndicator(),
                             );
                           }
 
-                          if (!assignmentSnapshot.hasData ||
-                              assignmentSnapshot.data == null) {
-                            return const Center(
-                              child: Text('No assignment data available.'),
-                            );
-                          }
-
-                          final docs = assignmentSnapshot.data!.docs;
+                          final docs = materialSnapshot.data?.docs ?? [];
                           if (docs.isEmpty) {
-                            return const Center(
+                            return Center(
                               child: Padding(
-                                padding: EdgeInsets.all(32.0),
+                                padding: const EdgeInsets.all(32.0),
                                 child: Text(
-                                  'No assignments published yet for this class.',
+                                  'No ${title.toLowerCase()} published yet for this class.',
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(color: Colors.grey),
+                                  style: const TextStyle(color: Colors.grey),
                                 ),
                               ),
                             );
                           }
 
-                          // Client-side sorting
                           final sortedDocs = List<QueryDocumentSnapshot>.from(
                             docs,
                           );
@@ -155,8 +148,7 @@ class StudentAssignmentsScreen extends StatelessWidget {
                               final doc = sortedDocs[index];
                               final data = doc.data() as Map<String, dynamic>;
                               final docId = doc.id;
-                              final title = data['title'] ?? 'Untitled';
-                              final type = data['type'] ?? 'Assignment';
+                              final mTitle = data['title'] ?? 'Untitled';
                               final dueDate = data['dueDate'] as Timestamp?;
                               final isDone = submittedIds.contains(docId);
 
@@ -174,15 +166,16 @@ class StudentAssignmentsScreen extends StatelessWidget {
                                     MaterialPageRoute(
                                       builder: (context) => TakeExamScreen(
                                         assignmentId: docId,
-                                        assignmentTitle: title,
+                                        assignmentTitle: mTitle,
                                         isReadOnly: isDone,
+                                        collectionName: collectionName,
                                       ),
                                     ),
                                   );
                                 },
-                                child: _buildAssignmentCard(
-                                  title: type,
-                                  subtitle: title,
+                                child: _buildMaterialCard(
+                                  title: title,
+                                  subtitle: mTitle,
                                   dueDate: formattedDate,
                                   isDone: isDone,
                                 ),
@@ -199,20 +192,17 @@ class StudentAssignmentsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAssignmentCard({
+  Widget _buildMaterialCard({
     required String title,
     required String subtitle,
     required String dueDate,
     bool isDone = false,
   }) {
-    // Determine icon based on type
     IconData iconData = Icons.assignment;
-    if (title.toUpperCase().contains('QUIZ')) {
+    if (collectionName == 'quizzes') {
       iconData = Icons.quiz;
-    } else if (title.toUpperCase().contains('ACTIVITY')) {
+    } else if (collectionName == 'activities') {
       iconData = Icons.edit_document;
-    } else if (title.toUpperCase().contains('EXAM')) {
-      iconData = Icons.assignment;
     }
 
     return Opacity(
@@ -239,7 +229,6 @@ class StudentAssignmentsScreen extends StatelessWidget {
         child: Row(
           children: [
             const SizedBox(width: 12),
-            // Circular White Icon Container
             Container(
               width: 56,
               height: 56,
@@ -250,7 +239,6 @@ class StudentAssignmentsScreen extends StatelessWidget {
               child: Icon(iconData, color: Colors.grey[700], size: 28),
             ),
             const SizedBox(width: 16),
-            // Text Details
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

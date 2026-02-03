@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../assignments/assignments_list_screen.dart';
+import '../assignments/unified_assignments_screen.dart';
 import '../modules/modules_list_screen.dart';
 import '../people/people_list_screen.dart';
 
@@ -66,7 +66,7 @@ class SubjectViewScreen extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => AssignmentsListScreen(
+                          builder: (context) => UnifiedAssignmentsScreen(
                             classCode: classCode,
                             classId: classId,
                           ),
@@ -108,64 +108,8 @@ class SubjectViewScreen extends StatelessWidget {
                       );
                     },
                   ),
-                  const Spacer(),
                 ],
               ),
-            ),
-          ),
-          // Bottom Buttons
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // TODO: Handle Upload action
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF81D4FA),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: const Text(
-                      'Upload',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // TODO: Handle Create action
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF42A5F5),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: const Text(
-                      'Create',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
             ),
           ),
         ],

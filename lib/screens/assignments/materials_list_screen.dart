@@ -1,33 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'choose_assignment_type_screen.dart';
+import 'choose_questions_type_screen.dart';
 import 'submissions_view_screen.dart';
-import 'create_exam_details_screen.dart';
+import 'create_material_details_screen.dart';
 
-class AssignmentsListScreen extends StatefulWidget {
+class MaterialsListScreen extends StatefulWidget {
   final String classCode;
   final String classId;
+  final String collectionName;
+  final String title;
 
-  const AssignmentsListScreen({
+  const MaterialsListScreen({
     super.key,
     required this.classCode,
     required this.classId,
+    required this.collectionName,
+    required this.title,
   });
 
   @override
-  State<AssignmentsListScreen> createState() => _AssignmentsListScreenState();
+  State<MaterialsListScreen> createState() => _MaterialsListScreenState();
 }
 
-class _AssignmentsListScreenState extends State<AssignmentsListScreen> {
-  String? _selectedAssignmentId;
+class _MaterialsListScreenState extends State<MaterialsListScreen> {
+  String? _selectedMaterialId;
   bool _isPublishing = false;
 
-  Future<void> _deleteAssignment(String docId, String title) async {
+  Future<void> _deleteMaterial(String docId, String title) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Assignment?'),
+        title: Text('Delete ${widget.title}?'),
         content: Text(
           'Are you sure you want to delete "$title"? This cannot be undone.',
         ),
@@ -47,13 +51,13 @@ class _AssignmentsListScreenState extends State<AssignmentsListScreen> {
     if (confirmed == true) {
       try {
         await FirebaseFirestore.instance
-            .collection('assignments')
+            .collection(widget.collectionName)
             .doc(docId)
             .delete();
         if (mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(const SnackBar(content: Text('Assignment deleted')));
+          ).showSnackBar(SnackBar(content: Text('${widget.title} deleted')));
         }
       } catch (e) {
         if (mounted) {
@@ -65,24 +69,24 @@ class _AssignmentsListScreenState extends State<AssignmentsListScreen> {
     }
   }
 
-  Future<void> _publishAssignment() async {
-    if (_selectedAssignmentId == null) return;
+  Future<void> _publishMaterial() async {
+    if (_selectedMaterialId == null) return;
 
     setState(() => _isPublishing = true);
 
     try {
       await FirebaseFirestore.instance
-          .collection('assignments')
-          .doc(_selectedAssignmentId)
+          .collection(widget.collectionName)
+          .doc(_selectedMaterialId)
           .update({'isPublished': true});
 
       if (mounted) {
         setState(() {
-          _selectedAssignmentId = null;
+          _selectedMaterialId = null;
           _isPublishing = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Assignment published successfully!')),
+          SnackBar(content: Text('${widget.title} published successfully!')),
         );
       }
     } catch (e) {
@@ -119,23 +123,23 @@ class _AssignmentsListScreenState extends State<AssignmentsListScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Assignments Title
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          // Title
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Text(
-              'Assignments',
-              style: TextStyle(
+              widget.title,
+              style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
               ),
             ),
           ),
-          // Assignment Cards List
+          // Cards List
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
-                  .collection('assignments')
+                  .collection(widget.collectionName)
                   .where('classCode', isEqualTo: widget.classCode)
                   .snapshots(),
               builder: (context, snapshot) {
@@ -148,10 +152,11 @@ class _AssignmentsListScreenState extends State<AssignmentsListScreen> {
 
                 final docs = snapshot.data?.docs ?? [];
                 if (docs.isEmpty) {
-                  return const Center(child: Text('No assignments found.'));
+                  return Center(
+                    child: Text('No ${widget.title.toLowerCase()} found.'),
+                  );
                 }
 
-                // Sorting client-side to avoid index error
                 final sortedDocs = List<QueryDocumentSnapshot>.from(docs);
                 sortedDocs.sort((a, b) {
                   final aData = a.data() as Map<String, dynamic>;
@@ -173,7 +178,6 @@ class _AssignmentsListScreenState extends State<AssignmentsListScreen> {
                     final data = doc.data() as Map<String, dynamic>;
                     final docId = doc.id;
                     final title = data['title'] ?? 'Untitled';
-                    final type = data['type'] ?? 'Assignment';
                     final dueDate = data['dueDate'] as Timestamp?;
                     final isPublished = data['isPublished'] ?? false;
 
@@ -187,16 +191,16 @@ class _AssignmentsListScreenState extends State<AssignmentsListScreen> {
                     return GestureDetector(
                       onTap: () {
                         setState(() {
-                          _selectedAssignmentId =
-                              (_selectedAssignmentId == docId) ? null : docId;
+                          _selectedMaterialId = (_selectedMaterialId == docId)
+                              ? null
+                              : docId;
                         });
                       },
-                      child: _buildAssignmentCard(
+                      child: _buildMaterialCard(
                         docId: docId,
-                        title: type,
                         subtitle: title,
                         dueDate: formattedDate,
-                        isSelected: _selectedAssignmentId == docId,
+                        isSelected: _selectedMaterialId == docId,
                         isPublished: isPublished,
                         fullData: data,
                       ),
@@ -213,9 +217,9 @@ class _AssignmentsListScreenState extends State<AssignmentsListScreen> {
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: (_selectedAssignmentId == null || _isPublishing)
+                    onPressed: (_selectedMaterialId == null || _isPublishing)
                         ? null
-                        : _publishAssignment,
+                        : _publishMaterial,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF81D4FA),
                       disabledBackgroundColor: Colors.grey.shade300,
@@ -251,8 +255,10 @@ class _AssignmentsListScreenState extends State<AssignmentsListScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => ChooseAssignmentTypeScreen(
+                          builder: (context) => ChooseQuestionsTypeScreen(
                             classCode: widget.classCode,
+                            collectionName: widget.collectionName,
+                            materialTitle: widget.title,
                           ),
                         ),
                       );
@@ -283,23 +289,19 @@ class _AssignmentsListScreenState extends State<AssignmentsListScreen> {
     );
   }
 
-  Widget _buildAssignmentCard({
+  Widget _buildMaterialCard({
     required String docId,
-    required String title,
     required String subtitle,
     required String dueDate,
     required bool isSelected,
     required bool isPublished,
     required Map<String, dynamic> fullData,
   }) {
-    // Determine icon based on type
     IconData iconData = Icons.assignment;
-    if (title.toUpperCase().contains('QUIZ')) {
+    if (widget.collectionName == 'quizzes') {
       iconData = Icons.quiz;
-    } else if (title.toUpperCase().contains('ACTIVITY')) {
+    } else if (widget.collectionName == 'activities') {
       iconData = Icons.edit_document;
-    } else if (title.toUpperCase().contains('EXAM')) {
-      iconData = Icons.assignment;
     }
 
     return Container(
@@ -315,9 +317,9 @@ class _AssignmentsListScreenState extends State<AssignmentsListScreen> {
         borderRadius: BorderRadius.circular(24),
         border: isSelected
             ? Border.all(color: Colors.white, width: 2)
-            : isPublished
-            ? Border.all(color: Colors.greenAccent, width: 2)
-            : null,
+            : (isPublished
+                  ? Border.all(color: Colors.greenAccent, width: 2)
+                  : null),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -335,7 +337,6 @@ class _AssignmentsListScreenState extends State<AssignmentsListScreen> {
       child: Row(
         children: [
           const SizedBox(width: 12),
-          // Circular White Icon Container
           Container(
             width: 56,
             height: 56,
@@ -346,7 +347,6 @@ class _AssignmentsListScreenState extends State<AssignmentsListScreen> {
             child: Icon(iconData, color: Colors.grey[700], size: 28),
           ),
           const SizedBox(width: 16),
-          // Text Details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -395,17 +395,19 @@ class _AssignmentsListScreenState extends State<AssignmentsListScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => CreateExamDetailsScreen(
+                    builder: (context) => CreateMaterialDetailsScreen(
                       classCode: widget.classCode,
                       selectedTypes: types,
                       itemCount: questions.length.toString(),
-                      existingAssignmentId: docId,
+                      collectionName: widget.collectionName,
+                      materialTitle: widget.title,
+                      existingMaterialId: docId,
                       existingData: fullData,
                     ),
                   ),
                 );
               } else if (value == 'delete') {
-                _deleteAssignment(docId, subtitle);
+                _deleteMaterial(docId, subtitle);
               } else if (value == 'view') {
                 Navigator.push(
                   context,
@@ -413,6 +415,7 @@ class _AssignmentsListScreenState extends State<AssignmentsListScreen> {
                     builder: (context) => SubmissionsViewScreen(
                       assignmentId: docId,
                       assignmentTitle: subtitle,
+                      collectionName: widget.collectionName,
                     ),
                   ),
                 );

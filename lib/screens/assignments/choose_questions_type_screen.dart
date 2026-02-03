@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
-import 'create_exam_details_screen.dart';
+import 'create_material_details_screen.dart';
 
-class ChooseExamTypeScreen extends StatefulWidget {
+class ChooseQuestionsTypeScreen extends StatefulWidget {
   final String classCode;
+  final String collectionName;
+  final String materialTitle;
 
-  const ChooseExamTypeScreen({super.key, required this.classCode});
+  const ChooseQuestionsTypeScreen({
+    super.key,
+    required this.classCode,
+    required this.collectionName,
+    required this.materialTitle,
+  });
 
   @override
-  State<ChooseExamTypeScreen> createState() => _ChooseExamTypeScreenState();
+  State<ChooseQuestionsTypeScreen> createState() =>
+      _ChooseQuestionsTypeScreenState();
 }
 
-class _ChooseExamTypeScreenState extends State<ChooseExamTypeScreen> {
+class _ChooseQuestionsTypeScreenState extends State<ChooseQuestionsTypeScreen> {
   final Set<String> _selectedTypes = {};
   String _selectedItemCount = '1-10';
 
@@ -35,6 +43,11 @@ class _ChooseExamTypeScreenState extends State<ChooseExamTypeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    String displayTitle = widget.materialTitle.toUpperCase();
+    if (displayTitle.endsWith('S')) {
+      displayTitle = displayTitle.substring(0, displayTitle.length - 1);
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -62,9 +75,9 @@ class _ChooseExamTypeScreenState extends State<ChooseExamTypeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 16),
-                const Text(
-                  'CHOOSE A TYPE OF EXAM',
-                  style: TextStyle(
+                Text(
+                  'CHOOSE A TYPE OF $displayTitle',
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.black,
@@ -119,8 +132,10 @@ class _ChooseExamTypeScreenState extends State<ChooseExamTypeScreen> {
                 onPressed: () {
                   if (_selectedTypes.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please select at least one exam type'),
+                      SnackBar(
+                        content: Text(
+                          'Please select at least one ${widget.materialTitle.toLowerCase()} type',
+                        ),
                       ),
                     );
                     return;
@@ -128,10 +143,12 @@ class _ChooseExamTypeScreenState extends State<ChooseExamTypeScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => CreateExamDetailsScreen(
+                      builder: (context) => CreateMaterialDetailsScreen(
                         classCode: widget.classCode,
                         selectedTypes: _selectedTypes,
                         itemCount: _selectedItemCount,
+                        collectionName: widget.collectionName,
+                        materialTitle: widget.materialTitle,
                       ),
                     ),
                   );

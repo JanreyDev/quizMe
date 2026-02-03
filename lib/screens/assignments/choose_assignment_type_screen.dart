@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'choose_exam_type_screen.dart';
+import 'choose_questions_type_screen.dart';
 
 class ChooseAssignmentTypeScreen extends StatelessWidget {
   final String classCode;
@@ -44,38 +44,32 @@ class ChooseAssignmentTypeScreen extends StatelessWidget {
             const SizedBox(height: 32),
             _buildTypeButton(
               context,
-              icon: Icons.edit_note,
               label: 'EXAM',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        ChooseExamTypeScreen(classCode: classCode),
-                  ),
-                );
-              },
+              collectionName: 'exams',
+              onTap: () => _navigateToCreate(context, 'exams', 'Exams'),
             ),
             const SizedBox(height: 16),
             _buildTypeButton(
               context,
-              icon: Icons.edit_note,
               label: 'ACTIVITY',
-              onTap: () {},
+              collectionName: 'activities',
+              onTap: () =>
+                  _navigateToCreate(context, 'activities', 'Activities'),
             ),
             const SizedBox(height: 16),
             _buildTypeButton(
               context,
-              icon: Icons.edit_note,
               label: 'QUIZ',
-              onTap: () {},
+              collectionName: 'quizzes',
+              onTap: () => _navigateToCreate(context, 'quizzes', 'Quizzes'),
             ),
             const SizedBox(height: 16),
             _buildTypeButton(
               context,
-              icon: Icons.edit_note,
               label: 'ASSIGNMENT',
-              onTap: () {},
+              collectionName: 'assignments',
+              onTap: () =>
+                  _navigateToCreate(context, 'assignments', 'Assignments'),
             ),
           ],
         ),
@@ -83,37 +77,73 @@ class ChooseAssignmentTypeScreen extends StatelessWidget {
     );
   }
 
+  void _navigateToCreate(
+    BuildContext context,
+    String collectionName,
+    String materialTitle,
+  ) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChooseQuestionsTypeScreen(
+          classCode: classCode,
+          collectionName: collectionName,
+          materialTitle: materialTitle,
+        ),
+      ),
+    );
+  }
+
   Widget _buildTypeButton(
     BuildContext context, {
-    required IconData icon,
     required String label,
+    required String collectionName,
     required VoidCallback onTap,
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(24),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+        height: 80,
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF00BFA5), Color(0xFF00796B)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
+          color: const Color(0xFF009688), // Teal color from mockup
+          borderRadius: BorderRadius.circular(24),
         ),
         child: Row(
           children: [
-            Icon(icon, color: Colors.white, size: 28),
+            const SizedBox(width: 12),
+            Container(
+              width: 56,
+              height: 56,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.description, color: Colors.red, size: 24),
+                    Text(
+                      'PDF',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 8,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(width: 16),
             Text(
               label,
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
-                letterSpacing: 1.2,
+                color: Colors.black,
               ),
             ),
           ],

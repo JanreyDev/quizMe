@@ -7,6 +7,7 @@ class TakeExamScreen extends StatefulWidget {
   final String assignmentTitle;
   final bool isReadOnly;
   final String? studentId;
+  final String collectionName;
 
   const TakeExamScreen({
     super.key,
@@ -14,6 +15,7 @@ class TakeExamScreen extends StatefulWidget {
     required this.assignmentTitle,
     this.isReadOnly = false,
     this.studentId,
+    required this.collectionName,
   });
 
   @override
@@ -40,7 +42,7 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
   Future<void> _loadAssignmentData() async {
     try {
       final assignmentDoc = await FirebaseFirestore.instance
-          .collection('assignments')
+          .collection(widget.collectionName)
           .doc(widget.assignmentId)
           .get();
 

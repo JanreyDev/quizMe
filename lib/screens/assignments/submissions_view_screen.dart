@@ -6,11 +6,13 @@ import 'take_exam_screen.dart';
 class SubmissionsViewScreen extends StatelessWidget {
   final String assignmentId;
   final String assignmentTitle;
+  final String collectionName;
 
   const SubmissionsViewScreen({
     super.key,
     required this.assignmentId,
     required this.assignmentTitle,
+    required this.collectionName,
   });
 
   @override
@@ -92,6 +94,7 @@ class SubmissionsViewScreen extends StatelessWidget {
                         assignmentTitle: assignmentTitle,
                         isReadOnly: true,
                         studentId: data['studentId'],
+                        collectionName: collectionName,
                       ),
                     ),
                   );
