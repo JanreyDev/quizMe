@@ -74,6 +74,7 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
   );
   final TextEditingController _answerController = TextEditingController();
   bool _isTrue = true;
+  final ScrollController _scrollController = ScrollController();
 
   void _addQuestion() {
     if (_questionController.text.isEmpty) return;
@@ -137,6 +138,7 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
       body: Stack(
         children: [
           SingleChildScrollView(
+            controller: _scrollController,
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -357,34 +359,7 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
                   );
                 }),
 
-                if (_questions.length < maxItems &&
-                    _currentlyAddingType == null)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Row(
-                      children: [
-                        Text(
-                          '${_questions.length + 1}. ',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        InkWell(
-                          onTap: () => _showTypeSelection(),
-                          child: const Text(
-                            'Add',
-                            style: TextStyle(
-                              color: Colors.blue,
-                              fontSize: 18,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
+                // Removed 'Add' link as per user request
                 if (_currentlyAddingType != null) _buildQuestionForm(),
 
                 const SizedBox(height: 32),
@@ -452,6 +427,13 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
           _optionControllers[i].text = q.options![i];
         }
       }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
     });
   }
 
@@ -632,9 +614,12 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
                 ),
                 elevation: 0,
               ),
-              child: const Text(
-                'Add Question',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              child: Text(
+                _editingIndex != null ? 'Update Question' : 'Add Question',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
