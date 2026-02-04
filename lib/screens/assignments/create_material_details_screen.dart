@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
+import 'package:intl/intl.dart';
 import 'add_questions_screen.dart';
+
 import '../../services/ai_question_service.dart';
 
 class CreateMaterialDetailsScreen extends StatefulWidget {
@@ -33,7 +35,8 @@ class _CreateMaterialDetailsScreenState
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   DateTime? _selectedDate;
-  File? _pickedFile; // Changed from _pdfFile to support other types
+  TimeOfDay? _selectedTime;
+  File? _pickedFile;
   bool _isAiLoading = false;
 
   @override
@@ -44,23 +47,46 @@ class _CreateMaterialDetailsScreenState
       _nameController.text = widget.existingData!['teacherName'] ?? '';
       final dueDate = widget.existingData!['dueDate'] as Timestamp?;
       if (dueDate != null) {
-        _selectedDate = dueDate.toDate();
+        final d = dueDate.toDate();
+        _selectedDate = d;
+        _selectedTime = TimeOfDay.fromDateTime(d);
       }
     }
   }
 
   Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
+    final DateTime? pickedDate = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
+      initialDate: _selectedDate ?? DateTime.now(),
       firstDate: DateTime.now(),
       lastDate: DateTime(2101),
     );
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
+
+    if (pickedDate != null) {
+      if (!mounted) return;
+      final TimeOfDay? pickedTime = await showTimePicker(
+        context: context,
+        initialTime: _selectedTime ?? TimeOfDay.now(),
+      );
+
+      if (pickedTime != null) {
+        setState(() {
+          _selectedDate = pickedDate;
+          _selectedTime = pickedTime;
+        });
+      }
     }
+  }
+
+  DateTime? get _combinedDateTime {
+    if (_selectedDate == null || _selectedTime == null) return null;
+    return DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+      _selectedTime!.hour,
+      _selectedTime!.minute,
+    );
   }
 
   Future<void> _pickFileAndGenerateQuestions() async {
@@ -129,7 +155,7 @@ class _CreateMaterialDetailsScreenState
           selectedRanges: widget.selectedRanges,
           title: _titleController.text,
           teacherName: _nameController.text,
-          dueDate: _selectedDate!,
+          dueDate: _combinedDateTime!,
           collectionName: widget.collectionName,
           materialTitle: widget.materialTitle,
           existingMaterialId: widget.existingMaterialId,
@@ -230,19 +256,34 @@ class _CreateMaterialDetailsScreenState
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          _selectedDate == null
-                              ? 'Enter date:'
-                              : '${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}',
-                          style: TextStyle(
-                            color: _selectedDate == null
-                                ? Colors.grey
-                                : Colors.black,
-                            fontSize: 16,
-                          ),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.event_available,
+                              color: Color(0xFF42A5F5),
+                              size: 22,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              _combinedDateTime == null
+                                  ? 'Click to set deadline'
+                                  : DateFormat(
+                                      'MMM dd, yyyy - hh:mm a',
+                                    ).format(_combinedDateTime!),
+                              style: TextStyle(
+                                color: _combinedDateTime == null
+                                    ? Colors.grey.shade600
+                                    : const Color(0xFF1B1B4B),
+                                fontSize: 16,
+                                fontWeight: _combinedDateTime == null
+                                    ? FontWeight.normal
+                                    : FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                         const Icon(
-                          Icons.calendar_today,
+                          Icons.chevron_right,
                           color: Colors.grey,
                           size: 20,
                         ),
@@ -355,10 +396,12 @@ class _CreateMaterialDetailsScreenState
                         width: 200,
                         child: ElevatedButton(
                           onPressed: () {
-                            if (_selectedDate == null) {
+                            if (_combinedDateTime == null) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Please select a due date'),
+                                  content: Text(
+                                    'Please set the deadline (Date & Time)',
+                                  ),
                                 ),
                               );
                               return;

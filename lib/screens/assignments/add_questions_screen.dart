@@ -55,6 +55,9 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
   String? _currentlyAddingType;
   File? _pickedFile;
 
+  int _currentPage = 0;
+  static const int _itemsPerPage = 5;
+
   @override
   void initState() {
     super.initState();
@@ -113,8 +116,15 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    int maxItems =
-        50; // We can remove the range restriction or calculate it from selectedRanges if needed
+    final int totalPages = (_questions.length / _itemsPerPage).ceil();
+    final int startIndex = _currentPage * _itemsPerPage;
+    final int endIndex = (startIndex + _itemsPerPage < _questions.length)
+        ? startIndex + _itemsPerPage
+        : _questions.length;
+    final List<Question> visibleQuestions = _questions.sublist(
+      startIndex,
+      endIndex,
+    );
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -135,12 +145,7 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
         ),
         centerTitle: true,
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showTypeSelection,
-        label: const Text('Add Question'),
-        icon: const Icon(Icons.add),
-        backgroundColor: const Color(0xFF4FC3F7),
-      ),
+
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -178,48 +183,10 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
                       ],
                     ),
                   ),
-                if (widget.extractedText != null &&
-                    widget.extractedText!.isNotEmpty)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 24),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'EXTRACTED REFERENCE',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                            color: Colors.blue,
-                            letterSpacing: 1.1,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          constraints: const BoxConstraints(maxHeight: 250),
-                          child: SingleChildScrollView(
-                            child: Text(
-                              widget.extractedText!,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: Colors.black87,
-                                height: 1.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
 
-                ...List.generate(_questions.length, (index) {
-                  final q = _questions[index];
+                ...List.generate(visibleQuestions.length, (index) {
+                  final absoluteIndex = startIndex + index;
+                  final q = visibleQuestions[index];
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Container(
@@ -239,7 +206,7 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
                         color: Colors.transparent,
                         child: InkWell(
                           borderRadius: BorderRadius.circular(12),
-                          onTap: () => _editQuestion(index),
+                          onTap: () => _editQuestion(absoluteIndex),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Column(
@@ -257,7 +224,7 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
-                                        '#${index + 1} • ${q.type}',
+                                        '#${absoluteIndex + 1} • ${q.type}',
                                         style: const TextStyle(
                                           color: Colors.blue,
                                           fontSize: 12,
@@ -365,6 +332,75 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
                   );
                 }),
 
+                if (totalPages > 1) ...[
+                  const SizedBox(height: 24),
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(color: Colors.blue.shade100),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back_ios, size: 16),
+                            color: const Color(0xFF42A5F5),
+                            padding: EdgeInsets.zero,
+                            onPressed: _currentPage > 0
+                                ? () {
+                                    setState(() => _currentPage--);
+                                    _scrollController.animateTo(
+                                      0,
+                                      duration: const Duration(
+                                        milliseconds: 300,
+                                      ),
+                                      curve: Curves.easeInOut,
+                                    );
+                                  }
+                                : null,
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              'Page ${_currentPage + 1} of $totalPages',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1B1B4B),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.arrow_forward_ios, size: 16),
+                            color: const Color(0xFF42A5F5),
+                            padding: EdgeInsets.zero,
+                            onPressed: _currentPage < totalPages - 1
+                                ? () {
+                                    setState(() => _currentPage++);
+                                    _scrollController.animateTo(
+                                      0,
+                                      duration: const Duration(
+                                        milliseconds: 300,
+                                      ),
+                                      curve: Curves.easeInOut,
+                                    );
+                                  }
+                                : null,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+
                 const SizedBox(height: 80), // Space for FAB
                 if (_questions.isNotEmpty)
                   Center(
@@ -430,34 +466,6 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
       }
     }
     _showQuestionModal();
-  }
-
-  void _showTypeSelection() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: widget.selectedRanges.keys.map((type) {
-              return ListTile(
-                title: Text(type),
-                onTap: () {
-                  Navigator.pop(context);
-                  setState(() {
-                    _currentlyAddingType = type;
-                    _editingIndex = null;
-                    _resetForm();
-                  });
-                  _showQuestionModal();
-                },
-              );
-            }).toList(),
-          ),
-        );
-      },
-    );
   }
 
   void _showQuestionModal() {
