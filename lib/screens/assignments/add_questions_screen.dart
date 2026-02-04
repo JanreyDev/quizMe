@@ -135,6 +135,12 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
         ),
         centerTitle: true,
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showTypeSelection,
+        label: const Text('Add Question'),
+        icon: const Icon(Icons.add),
+        backgroundColor: const Color(0xFF4FC3F7),
+      ),
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -359,10 +365,7 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
                   );
                 }),
 
-                // Removed 'Add' link as per user request
-                if (_currentlyAddingType != null) _buildQuestionForm(),
-
-                const SizedBox(height: 32),
+                const SizedBox(height: 80), // Space for FAB
                 if (_questions.isNotEmpty)
                   Center(
                     child: ElevatedButton(
@@ -416,25 +419,17 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
   int? _editingIndex;
 
   void _editQuestion(int index) {
-    setState(() {
-      _editingIndex = index;
-      final q = _questions[index];
-      _currentlyAddingType = q.type;
-      _questionController.text = q.question;
-      _answerController.text = q.answer;
-      if (q.options != null && q.options!.length == 4) {
-        for (int i = 0; i < 4; i++) {
-          _optionControllers[i].text = q.options![i];
-        }
+    _editingIndex = index;
+    final q = _questions[index];
+    _currentlyAddingType = q.type;
+    _questionController.text = q.question;
+    _answerController.text = q.answer;
+    if (q.options != null && q.options!.length == 4) {
+      for (int i = 0; i < 4; i++) {
+        _optionControllers[i].text = q.options![i];
       }
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    });
+    }
+    _showQuestionModal();
   }
 
   void _showTypeSelection() {
@@ -449,10 +444,13 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
               return ListTile(
                 title: Text(type),
                 onTap: () {
+                  Navigator.pop(context);
                   setState(() {
                     _currentlyAddingType = type;
+                    _editingIndex = null;
+                    _resetForm();
                   });
-                  Navigator.pop(context);
+                  _showQuestionModal();
                 },
               );
             }).toList(),
@@ -462,195 +460,268 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
     );
   }
 
-  Widget _buildQuestionForm() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blue.shade100, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+  void _showQuestionModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.85,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (_, controller) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _currentlyAddingType!,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue.shade900,
-                  fontSize: 16,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, size: 20),
-                onPressed: () => setState(() => _currentlyAddingType = null),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _questionController,
-            maxLines: 2,
-            decoration: InputDecoration(
-              labelText: 'Question',
-              hintText: 'Enter your question here',
-              filled: true,
-              fillColor: Colors.grey.shade50,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
+          padding: const EdgeInsets.all(24),
+          child: StatefulBuilder(
+            builder: (context, setModalState) {
+              return ListView(
+                controller: controller,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _editingIndex != null
+                            ? 'Edit Question'
+                            : 'New Question',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const Divider(),
+                  const SizedBox(height: 16),
 
-          if (_currentlyAddingType == 'MULTIPLE CHOICE') ...[
-            ...List.generate(4, (index) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: TextField(
-                  controller: _optionControllers[index],
-                  decoration: InputDecoration(
-                    labelText: 'Option ${String.fromCharCode(65 + index)}',
-                    prefixIcon: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Text(
-                        '${String.fromCharCode(65 + index)}.',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                  // Question Type Display
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _currentlyAddingType!,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade900,
+                        fontSize: 14,
                       ),
                     ),
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  ),
+                  const SizedBox(height: 16),
+
+                  TextField(
+                    controller: _questionController,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: 'Question',
+                      hintText: 'Enter your question here',
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 20),
+
+                  if (_currentlyAddingType == 'MULTIPLE CHOICE') ...[
+                    ...List.generate(4, (index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: TextField(
+                          controller: _optionControllers[index],
+                          decoration: InputDecoration(
+                            labelText:
+                                'Option ${String.fromCharCode(65 + index)}',
+                            prefixIcon: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Text(
+                                '${String.fromCharCode(65 + index)}.',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey.shade50,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _answerController,
+                      decoration: InputDecoration(
+                        labelText: 'Correct Answer',
+                        hintText: 'e.g. A',
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ] else if (_currentlyAddingType == 'TRUE OR FALSE') ...[
+                    const Text(
+                      'Select Correct Answer:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setModalState(() => _isTrue = true);
+                              setState(
+                                () => _isTrue = true,
+                              ); // sync with parent
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              decoration: BoxDecoration(
+                                color: _isTrue
+                                    ? const Color(0xFF4FC3F7).withOpacity(0.2)
+                                    : Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: _isTrue
+                                      ? const Color(0xFF4FC3F7)
+                                      : Colors.grey.shade300,
+                                  width: 2,
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'TRUE',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: _isTrue
+                                        ? Colors.blue.shade900
+                                        : Colors.grey.shade600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setModalState(() => _isTrue = false);
+                              setState(
+                                () => _isTrue = false,
+                              ); // sync with parent
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              decoration: BoxDecoration(
+                                color: !_isTrue
+                                    ? const Color(0xFF4FC3F7).withOpacity(0.2)
+                                    : Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: !_isTrue
+                                      ? const Color(0xFF4FC3F7)
+                                      : Colors.grey.shade300,
+                                  width: 2,
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'FALSE',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: !_isTrue
+                                        ? Colors.blue.shade900
+                                        : Colors.grey.shade600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else if (_currentlyAddingType == 'ENUMERATION') ...[
+                    TextField(
+                      controller: _answerController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        labelText: 'Answers',
+                        hintText: 'Enter items separated by commas',
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    // Identification
+                    TextField(
+                      controller: _answerController,
+                      decoration: InputDecoration(
+                        labelText: 'Correct Answer',
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        _addQuestion();
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4FC3F7),
+                        foregroundColor: Colors.blue.shade900,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        _editingIndex != null
+                            ? 'Update Question'
+                            : 'Add Question',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
+                ],
               );
-            }),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _answerController,
-              decoration: InputDecoration(
-                labelText: 'Correct Answer',
-                hintText: 'e.g. A',
-                filled: true,
-                fillColor: Colors.grey.shade50,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ] else if (_currentlyAddingType == 'TRUE OR FALSE') ...[
-            const Text(
-              'Select Correct Answer:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildTypeRadioButton(label: 'TRUE', value: true),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildTypeRadioButton(label: 'FALSE', value: false),
-                ),
-              ],
-            ),
-          ] else if (_currentlyAddingType == 'ENUMERATION') ...[
-            TextField(
-              controller: _answerController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                labelText: 'Answers',
-                hintText: 'Enter items separated by commas',
-                filled: true,
-                fillColor: Colors.grey.shade50,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ] else ...[
-            // Identification
-            TextField(
-              controller: _answerController,
-              decoration: InputDecoration(
-                labelText: 'Correct Answer',
-                filled: true,
-                fillColor: Colors.grey.shade50,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _addQuestion,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4FC3F7),
-                foregroundColor: Colors.blue.shade900,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-              child: Text(
-                _editingIndex != null ? 'Update Question' : 'Add Question',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTypeRadioButton({required String label, required bool value}) {
-    bool isSelected = _isTrue == value;
-    return GestureDetector(
-      onTap: () => setState(() => _isTrue = value),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? const Color(0xFF4FC3F7).withOpacity(0.2)
-              : Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? const Color(0xFF4FC3F7) : Colors.grey.shade300,
-            width: 2,
-          ),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: isSelected ? Colors.blue.shade900 : Colors.grey.shade600,
-            ),
+            },
           ),
         ),
       ),

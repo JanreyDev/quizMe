@@ -283,7 +283,7 @@ class _MaterialPreviewScreenState extends State<MaterialPreviewScreen> {
                                   'title': widget.title,
                                   'teacherName': widget.teacherName,
                                   'dueDate': widget.dueDate,
-                                  'isPublished': false,
+                                  'isPublished': true,
                                   'pdfUrl': pdfUrl, // Save the URL
                                   'extractedText': widget
                                       .extractedText, // Save the full text
