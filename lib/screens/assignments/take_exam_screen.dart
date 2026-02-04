@@ -358,14 +358,73 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                     'Teacher\'s Correct Answer:',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  Text(
-                    correctAns,
-                    style: const TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
+                  () {
+                    if (q['type'] == 'MULTIPLE CHOICE') {
+                      final options = q['options'] as List? ?? [];
+                      final idx = options.indexOf(correctAns);
+                      if (idx != -1) {
+                        final letter = String.fromCharCode(65 + idx);
+
+                        String cleanedAns = correctAns.trim();
+                        final labelRegex = RegExp(
+                          r'^[A-D][\.\)\-\s]+',
+                          caseSensitive: false,
+                        );
+                        cleanedAns = cleanedAns
+                            .replaceFirst(labelRegex, '')
+                            .trim();
+
+                        return Text(
+                          '$letter. $cleanedAns',
+                          style: const TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        );
+                      }
+                    } else if (q['type'] == 'ENUMERATION') {
+                      String clean = correctAns.trim();
+                      if (clean.startsWith('[') && clean.endsWith(']')) {
+                        clean = clean.substring(1, clean.length - 1);
+                      }
+                      final items = clean
+                          .split(RegExp(r'[,;]'))
+                          .map((e) => e.trim())
+                          .where((e) => e.isNotEmpty)
+                          .toList();
+
+                      if (items.length > 1) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: items
+                                .map(
+                                  (item) => Text(
+                                    '• $item',
+                                    style: const TextStyle(
+                                      color: Colors.green,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        );
+                      }
+                    }
+
+                    return Text(
+                      correctAns,
+                      style: const TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    );
+                  }(),
                   if (q['type'] == 'TRUE OR FALSE' && q['answer'] == 'FALSE')
                     Text(
                       'CORRECTION: ${q['correction'] ?? 'N/A'}',
@@ -746,8 +805,13 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
       children: options.asMap().entries.map((entry) {
         final idx = entry.key;
         final optStr = entry.value.toString();
-        final letter = String.fromCharCode(97 + idx); // a, b, c, d
+        final letter = String.fromCharCode(65 + idx); // A, B, C, D
         final isSelected = studentAns == optStr;
+
+        // Clean option from existing "A)", "A.", etc.
+        String cleanedOpt = optStr.trim();
+        final labelRegex = RegExp(r'^[A-D][\.\)\-\s]+', caseSensitive: false);
+        cleanedOpt = cleanedOpt.replaceFirst(labelRegex, '').trim();
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
@@ -757,7 +821,7 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                 : () => setState(() => _answers[qIndex] = optStr),
             borderRadius: BorderRadius.circular(12),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
                 color: isSelected ? const Color(0xFFF0F7FF) : Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -771,8 +835,8 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
               child: Row(
                 children: [
                   Container(
-                    width: 28,
-                    height: 28,
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
                       color: isSelected
                           ? const Color(0xFF4285F4)
@@ -781,12 +845,12 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                     ),
                     child: Center(
                       child: Text(
-                        letter.toUpperCase(),
+                        letter,
                         style: TextStyle(
                           color: isSelected
                               ? Colors.white
                               : Colors.grey.shade600,
-                          fontSize: 12,
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -795,14 +859,14 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      optStr,
+                      cleanedOpt,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 15,
                         color: isSelected
                             ? const Color(0xFF1B1B4B)
                             : Colors.black87,
                         fontWeight: isSelected
-                            ? FontWeight.w600
+                            ? FontWeight.bold
                             : FontWeight.normal,
                       ),
                     ),
@@ -811,7 +875,7 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                     const Icon(
                       Icons.check_circle,
                       color: Color(0xFF4285F4),
-                      size: 18,
+                      size: 20,
                     ),
                 ],
               ),
@@ -1072,6 +1136,11 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
   }
 
   Widget _buildIdentification(int qIndex) {
+    Map<String, dynamic>? q;
+    if (qIndex >= 0 && qIndex < _questions.length) {
+      q = _questions[qIndex] as Map<String, dynamic>?;
+    }
+
     if (!_controllers.containsKey(qIndex)) {
       _controllers[qIndex] = TextEditingController(
         text: _answers[qIndex]?.toString() ?? '',
@@ -1086,10 +1155,14 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
               ? null
               : (val) => setState(() => _answers[qIndex] = val),
           enabled: !widget.isReadOnly,
+          maxLines: null, // Allow multiline
+          keyboardType: TextInputType.multiline,
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           textAlign: TextAlign.center,
           decoration: InputDecoration(
-            hintText: 'Type your answer...',
+            hintText: (q?['type'] == 'ENUMERATION')
+                ? 'List your answers here...'
+                : 'Type your answer...',
             hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 16),
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 8),

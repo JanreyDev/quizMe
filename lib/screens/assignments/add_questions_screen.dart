@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
-import 'material_preview_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class Question {
   final String type;
@@ -59,6 +60,81 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
 
   int _currentPage = 0;
   static const int _itemsPerPage = 5;
+  bool _isSaving = false;
+
+  Future<String?> _uploadPdf(File file) async {
+    try {
+      final fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_${file.path.split(Platform.pathSeparator).last}';
+      final ref = FirebaseStorage.instance.ref().child(
+        'materials/pdfs/$fileName',
+      );
+      final uploadTask = await ref.putFile(file);
+      return await uploadTask.ref.getDownloadURL();
+    } catch (e) {
+      debugPrint('PDF Upload Error: $e');
+      return null;
+    }
+  }
+
+  Future<void> _saveExam() async {
+    if (_questions.isEmpty) return;
+
+    setState(() => _isSaving = true);
+    try {
+      String? pdfUrl;
+      if (_pickedFile != null) {
+        pdfUrl = await _uploadPdf(_pickedFile!);
+      }
+
+      final materialData = {
+        'classCode': widget.classCode,
+        'title': widget.title,
+        'teacherName': widget.teacherName,
+        'dueDate': widget.dueDate,
+        'isPublished': true,
+        'pdfUrl': pdfUrl,
+        'extractedText': widget.extractedText,
+        'questions': _questions
+            .map(
+              (q) => {
+                'type': q.type,
+                'question': q.question,
+                'options': q.options,
+                'answer': q.answer,
+                'correction': q.correction,
+              },
+            )
+            .toList(),
+      };
+
+      if (widget.existingMaterialId != null) {
+        await FirebaseFirestore.instance
+            .collection(widget.collectionName)
+            .doc(widget.existingMaterialId)
+            .update(materialData);
+      } else {
+        materialData['createdAt'] = FieldValue.serverTimestamp();
+        await FirebaseFirestore.instance
+            .collection(widget.collectionName)
+            .add(materialData);
+      }
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error saving ${widget.materialTitle.toLowerCase()}: $e',
+            ),
+          ),
+        );
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -259,39 +335,67 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
                                 if (q.options != null &&
                                     q.options!.isNotEmpty) ...[
                                   const SizedBox(height: 8),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: q.options!.map((opt) {
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: q.options!.asMap().entries.map((
+                                      entry,
+                                    ) {
+                                      final idx = entry.key;
+                                      final opt = entry.value;
                                       final isCorrect = opt == q.answer;
-                                      return Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 6,
+                                      final letter = String.fromCharCode(
+                                        65 + idx,
+                                      );
+
+                                      // Clean option from existing "A)", "A.", etc.
+                                      String cleanedOpt = opt.trim();
+                                      final labelRegex = RegExp(
+                                        r'^[A-D][\.\)\-\s]+',
+                                        caseSensitive: false,
+                                      );
+                                      cleanedOpt = cleanedOpt
+                                          .replaceFirst(labelRegex, '')
+                                          .trim();
+
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 6,
                                         ),
-                                        decoration: BoxDecoration(
-                                          color: isCorrect
-                                              ? Colors.green.withOpacity(0.1)
-                                              : Colors.grey.withOpacity(0.05),
-                                          borderRadius: BorderRadius.circular(
-                                            20,
+                                        child: Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 8,
                                           ),
-                                          border: Border.all(
+                                          decoration: BoxDecoration(
                                             color: isCorrect
-                                                ? Colors.green.withOpacity(0.3)
-                                                : Colors.grey.withOpacity(0.2),
+                                                ? Colors.green.withOpacity(0.1)
+                                                : Colors.grey.withOpacity(0.05),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color: isCorrect
+                                                  ? Colors.green.withOpacity(
+                                                      0.3,
+                                                    )
+                                                  : Colors.grey.withOpacity(
+                                                      0.2,
+                                                    ),
+                                            ),
                                           ),
-                                        ),
-                                        child: Text(
-                                          opt,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: isCorrect
-                                                ? Colors.green.shade700
-                                                : Colors.black54,
-                                            fontWeight: isCorrect
-                                                ? FontWeight.bold
-                                                : FontWeight.normal,
+                                          child: Text(
+                                            '$letter. $cleanedOpt',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: isCorrect
+                                                  ? Colors.green.shade700
+                                                  : Colors.black87,
+                                              fontWeight: isCorrect
+                                                  ? FontWeight.bold
+                                                  : FontWeight.normal,
+                                            ),
                                           ),
                                         ),
                                       );
@@ -310,22 +414,103 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
                                     ),
                                   ),
                                   child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment
+                                        .start, // Align with multiline items
                                     children: [
-                                      const Icon(
-                                        Icons.check_circle_outline,
-                                        size: 16,
-                                        color: Colors.green,
+                                      const Padding(
+                                        padding: EdgeInsets.only(top: 2),
+                                        child: Icon(
+                                          Icons.check_circle_outline,
+                                          size: 16,
+                                          color: Colors.green,
+                                        ),
                                       ),
                                       const SizedBox(width: 8),
                                       Expanded(
-                                        child: Text(
-                                          q.answer,
-                                          style: TextStyle(
-                                            color: Colors.green.shade700,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
-                                          ),
-                                        ),
+                                        child: () {
+                                          if (q.type == 'MULTIPLE CHOICE') {
+                                            final idx =
+                                                q.options?.indexOf(q.answer) ??
+                                                -1;
+                                            final letter = idx != -1
+                                                ? String.fromCharCode(65 + idx)
+                                                : '';
+
+                                            String cleanedAns = q.answer.trim();
+                                            final labelRegex = RegExp(
+                                              r'^[A-D][\.\)\-\s]+',
+                                              caseSensitive: false,
+                                            );
+                                            cleanedAns = cleanedAns
+                                                .replaceFirst(labelRegex, '')
+                                                .trim();
+
+                                            return Text(
+                                              letter.isNotEmpty
+                                                  ? '$letter. $cleanedAns'
+                                                  : cleanedAns,
+                                              style: TextStyle(
+                                                color: Colors.green.shade700,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                              ),
+                                            );
+                                          }
+                                          if (q.type == 'ENUMERATION') {
+                                            // Handle various formats: [a, b], a, b, a; b etc.
+                                            String clean = q.answer.trim();
+                                            if (clean.startsWith('[') &&
+                                                clean.endsWith(']')) {
+                                              clean = clean.substring(
+                                                1,
+                                                clean.length - 1,
+                                              );
+                                            }
+                                            // Split by comma OR semicolon
+                                            final items = clean
+                                                .split(RegExp(r'[,;]'))
+                                                .map((e) => e.trim())
+                                                .where((e) => e.isNotEmpty)
+                                                .toList();
+
+                                            if (items.length > 1) {
+                                              return Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: items
+                                                    .map(
+                                                      (item) => Padding(
+                                                        padding:
+                                                            const EdgeInsets.only(
+                                                              bottom: 2,
+                                                            ),
+                                                        child: Text(
+                                                          '• $item',
+                                                          style: TextStyle(
+                                                            color: Colors
+                                                                .green
+                                                                .shade700,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            fontSize: 14,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    )
+                                                    .toList(),
+                                              );
+                                            }
+                                          }
+
+                                          return Text(
+                                            q.answer,
+                                            style: TextStyle(
+                                              color: Colors.green.shade700,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                          );
+                                        }(),
                                       ),
                                     ],
                                   ),
@@ -449,25 +634,7 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
                 if (_questions.isNotEmpty)
                   Center(
                     child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => MaterialPreviewScreen(
-                              classCode: widget.classCode,
-                              title: widget.title,
-                              teacherName: widget.teacherName,
-                              dueDate: widget.dueDate,
-                              questions: _questions,
-                              collectionName: widget.collectionName,
-                              materialTitle: widget.materialTitle,
-                              existingMaterialId: widget.existingMaterialId,
-                              pdfFile: _pickedFile,
-                              extractedText: widget.extractedText,
-                            ),
-                          ),
-                        );
-                      },
+                      onPressed: _isSaving ? null : _saveExam,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF42A5F5),
                         foregroundColor: Colors.white,
@@ -479,9 +646,9 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
                           borderRadius: BorderRadius.circular(30),
                         ),
                       ),
-                      child: const Text(
-                        'Submit',
-                        style: TextStyle(
+                      child: Text(
+                        _isSaving ? 'Saving...' : 'Save Exam',
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
@@ -491,6 +658,10 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
               ],
             ),
           ),
+          if (_isSaving)
+            const Center(
+              child: CircularProgressIndicator(color: Color(0xFF42A5F5)),
+            ),
         ],
       ),
     );

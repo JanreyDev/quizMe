@@ -165,12 +165,14 @@ Return the result as a raw JSON array of objects with this structure:
 {
   "type": "MULTIPLE CHOICE" | "TRUE OR FALSE" | "IDENTIFICATION" | "ENUMERATION",
   "question": "The question text",
-  "options": ["Option A", "Option B", "Option C", "Option D"], // Only for MULTIPLE CHOICE.
-  "answer": "The correct answer",
+  "options": ["Raw Option 1", "Raw Option 2", "Raw Option 3", "Raw Option 4"], // Only for MULTIPLE CHOICE. DO NOT include "A.", "B.", etc. in these strings.
+  "answer": "The correct answer (or semicolon-separated list for ENUMERATION)",
   "correction": "The correct statement/value if TRUE OR FALSE is FALSE" // Only for TRUE OR FALSE when answer is FALSE.
 }
 
-IMPORTANT: Return ONLY the JSON array. Do not include any extra text.
+IMPORTANT: For MULTIPLE CHOICE, provide ONLY the raw option text in the and ensure the answer matches one of the options EXACTLY (without labels like "A. ").
+IMPORTANT: For ENUMERATION, provide the answers as a single string separated by semicolons (e.g., "Item 1; Item 2; Item 3").
+Return ONLY the JSON array. Do not include any extra text.
 ''';
 
       // 4. Call Gemini
