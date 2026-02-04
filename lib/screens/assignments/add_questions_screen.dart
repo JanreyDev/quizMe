@@ -7,12 +7,14 @@ class Question {
   final String question;
   final List<String>? options;
   final String answer;
+  final String? correction;
 
   Question({
     required this.type,
     required this.question,
     this.options,
     required this.answer,
+    this.correction,
   });
 }
 
@@ -76,6 +78,7 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
     (_) => TextEditingController(),
   );
   final TextEditingController _answerController = TextEditingController();
+  final TextEditingController _correctionController = TextEditingController();
   bool _isTrue = true;
   final ScrollController _scrollController = ScrollController();
 
@@ -91,6 +94,9 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
       answer: _currentlyAddingType == 'TRUE OR FALSE'
           ? (_isTrue ? 'TRUE' : 'FALSE')
           : _answerController.text,
+      correction: (_currentlyAddingType == 'TRUE OR FALSE' && !_isTrue)
+          ? _correctionController.text
+          : null,
     );
 
     setState(() {
@@ -111,6 +117,7 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
       c.clear();
     }
     _answerController.clear();
+    _correctionController.clear();
     _isTrue = true;
   }
 
@@ -323,6 +330,43 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
                                     ],
                                   ),
                                 ),
+                                if (q.type == 'TRUE OR FALSE' &&
+                                    q.answer == 'FALSE' &&
+                                    q.correction != null &&
+                                    q.correction!.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.withOpacity(0.05),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: Colors.blue.withOpacity(0.2),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.info_outline,
+                                          size: 16,
+                                          color: Colors.blue,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Correction: ${q.correction}',
+                                            style: TextStyle(
+                                              color: Colors.blue.shade700,
+                                              fontStyle: FontStyle.italic,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -460,6 +504,8 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
     _currentlyAddingType = q.type;
     _questionController.text = q.question;
     _answerController.text = q.answer;
+    _correctionController.text = q.correction ?? '';
+    _isTrue = q.answer.toUpperCase() == 'TRUE';
     if (q.options != null && q.options!.length == 4) {
       for (int i = 0; i < 4; i++) {
         _optionControllers[i].text = q.options![i];
@@ -669,6 +715,21 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
                         ),
                       ],
                     ),
+                    if (!_isTrue) ...[
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _correctionController,
+                        decoration: InputDecoration(
+                          labelText: 'Correct Answer / Statement',
+                          hintText: 'Provide the right statement',
+                          filled: true,
+                          fillColor: Colors.grey.shade50,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ],
                   ] else if (_currentlyAddingType == 'ENUMERATION') ...[
                     TextField(
                       controller: _answerController,

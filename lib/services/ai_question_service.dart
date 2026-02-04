@@ -166,7 +166,8 @@ Return the result as a raw JSON array of objects with this structure:
   "type": "MULTIPLE CHOICE" | "TRUE OR FALSE" | "IDENTIFICATION" | "ENUMERATION",
   "question": "The question text",
   "options": ["Option A", "Option B", "Option C", "Option D"], // Only for MULTIPLE CHOICE.
-  "answer": "The correct answer"
+  "answer": "The correct answer",
+  "correction": "The correct statement/value if TRUE OR FALSE is FALSE" // Only for TRUE OR FALSE when answer is FALSE.
 }
 
 IMPORTANT: Return ONLY the JSON array. Do not include any extra text.
@@ -207,6 +208,7 @@ IMPORTANT: Return ONLY the JSON array. Do not include any extra text.
               ? List<String>.from(item['options'])
               : null,
           answer: item['answer'].toString(),
+          correction: item['correction']?.toString(),
         );
       }).toList();
 

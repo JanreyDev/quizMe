@@ -26,6 +26,7 @@ class TakeExamScreen extends StatefulWidget {
 class _TakeExamScreenState extends State<TakeExamScreen> {
   final Map<int, dynamic> _answers = {};
   final Map<int, TextEditingController> _controllers = {};
+  final Map<int, TextEditingController> _tfControllers = {};
   bool _isSubmitting = false;
 
   List<dynamic> _questions = [];
@@ -88,19 +89,50 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                 _answers[int.parse(key)] = value;
               });
 
-              // Initialize manual grades
+              // Initialize manual grades and load corrections
               for (int i = 0; i < questions.length; i++) {
                 final q = questions[i] as Map<String, dynamic>;
                 final type = q['type'];
+
+                // Load corrections if they exist
+                if (_answers[i] is Map) {
+                  final tfAns = _answers[i] as Map;
+                  if (tfAns.containsKey('correction')) {
+                    _tfControllers[i] = TextEditingController(
+                      text: tfAns['correction'],
+                    );
+                  }
+                }
 
                 // If we have saved manual grades, use them
                 if (existingManualGrades.containsKey(i.toString())) {
                   _manualGrades[i] =
                       existingManualGrades[i.toString()] as bool?;
                 } else {
-                  // Otherwise, auto-grade if objective, or set to null
+                  // Otherwise, auto-grade if objective
                   if (type == 'MULTIPLE CHOICE' || type == 'TRUE OR FALSE') {
-                    _manualGrades[i] = _answers[i] == q['answer'];
+                    if (type == 'TRUE OR FALSE') {
+                      final studentAns = _answers[i];
+                      if (studentAns is Map) {
+                        final choice = studentAns['choice'];
+                        final correction = studentAns['correction'];
+                        final isChoiceCorrect = choice == q['answer'];
+                        if (choice == 'FALSE') {
+                          // For FALSE, both choice and correction must be right (basic auto-grade)
+                          final isCorrectionCorrect =
+                              correction?.toString().toLowerCase() ==
+                              q['correction']?.toString().toLowerCase();
+                          _manualGrades[i] =
+                              isChoiceCorrect && isCorrectionCorrect;
+                        } else {
+                          _manualGrades[i] = isChoiceCorrect;
+                        }
+                      } else {
+                        _manualGrades[i] = studentAns == q['answer'];
+                      }
+                    } else {
+                      _manualGrades[i] = _answers[i] == q['answer'];
+                    }
                   } else {
                     _manualGrades[i] = null; // Pending
                   }
@@ -141,9 +173,23 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
     if (_questions.isEmpty) return false;
     for (int i = 0; i < _questions.length; i++) {
       final ans = _answers[i];
-      if (!_answers.containsKey(i) ||
-          ans == null ||
-          (ans is String && ans.trim().isEmpty)) {
+      final q = _questions[i] as Map<String, dynamic>;
+
+      if (!_answers.containsKey(i) || ans == null) return false;
+
+      if (q['type'] == 'TRUE OR FALSE') {
+        if (ans is Map) {
+          final choice = ans['choice'];
+          final correction = ans['correction'];
+          if (choice == null) return false;
+          if (choice == 'FALSE' && (correction == null || correction.isEmpty)) {
+            return false;
+          }
+        } else if (ans is String) {
+          if (ans.isEmpty) return false;
+          if (ans == 'FALSE') return false; // Need correction
+        }
+      } else if (ans is String && ans.trim().isEmpty) {
         return false;
       }
     }
@@ -224,11 +270,12 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
   }
 
   void _showGradingModal(int index, Map<String, dynamic> q) {
-    final studentAns = _answers[index]?.toString() ?? 'No answer';
+    final studentAns = _answers[index];
     final correctAns = q['answer']?.toString() ?? 'N/A';
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -258,21 +305,57 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                     'Student\'s Answer:',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  Text(
-                    studentAns,
-                    style: TextStyle(
-                      color: isCorrect == true
-                          ? Colors.green
-                          : isCorrect == false
-                          ? Colors.red
-                          : Colors.black,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
+                  () {
+                    if (studentAns is Map) {
+                      return Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'CHOICE: ${studentAns['choice']}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'CORRECTION: ${studentAns['correction']}',
+                              style: TextStyle(
+                                color: isCorrect == true
+                                    ? Colors.green
+                                    : isCorrect == false
+                                    ? Colors.red
+                                    : Colors.blue,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    return Text(
+                      studentAns?.toString() ?? 'No answer',
+                      style: TextStyle(
+                        color: isCorrect == true
+                            ? Colors.green
+                            : isCorrect == false
+                            ? Colors.red
+                            : Colors.black,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    );
+                  }(),
+                  const SizedBox(height: 16),
                   const Text(
-                    'Correct Answer:',
+                    'Teacher\'s Correct Answer:',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   Text(
@@ -280,8 +363,18 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                     style: const TextStyle(
                       color: Colors.green,
                       fontWeight: FontWeight.bold,
+                      fontSize: 16,
                     ),
                   ),
+                  if (q['type'] == 'TRUE OR FALSE' && q['answer'] == 'FALSE')
+                    Text(
+                      'CORRECTION: ${q['correction'] ?? 'N/A'}',
+                      style: const TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
                   const SizedBox(height: 32),
                   Row(
                     children: [
@@ -829,11 +922,61 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
   }
 
   Widget _buildTrueFalse(int qIndex) {
-    return Row(
+    final studentAns = _answers[qIndex];
+    String? choice;
+    if (studentAns is Map) {
+      choice = studentAns['choice'];
+    } else if (studentAns is String) {
+      choice = studentAns;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildChoiceChip(qIndex, 'TRUE'),
-        const SizedBox(width: 12),
-        _buildChoiceChip(qIndex, 'FALSE'),
+        Row(
+          children: [
+            _buildChoiceChip(qIndex, 'TRUE'),
+            const SizedBox(width: 12),
+            _buildChoiceChip(qIndex, 'FALSE'),
+          ],
+        ),
+        if (choice == 'FALSE') ...[
+          const SizedBox(height: 16),
+          const Text(
+            'Correction:',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _tfControllers.putIfAbsent(
+              qIndex,
+              () => TextEditingController(
+                text: (studentAns is Map) ? studentAns['correction'] : '',
+              ),
+            ),
+            onChanged: widget.isReadOnly
+                ? null
+                : (val) {
+                    setState(() {
+                      _answers[qIndex] = {'choice': 'FALSE', 'correction': val};
+                    });
+                  },
+            enabled: !widget.isReadOnly,
+            decoration: InputDecoration(
+              hintText: 'Provide the correct statement...',
+              filled: true,
+              fillColor: Colors.blue.withOpacity(0.05),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -880,7 +1023,21 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
       child: GestureDetector(
         onTap: widget.isReadOnly
             ? null
-            : () => setState(() => _answers[qIndex] = label),
+            : () {
+                setState(() {
+                  if (label == 'FALSE') {
+                    final existing = _answers[qIndex];
+                    _answers[qIndex] = {
+                      'choice': 'FALSE',
+                      'correction': (existing is Map)
+                          ? (existing['correction'] ?? '')
+                          : '',
+                    };
+                  } else {
+                    _answers[qIndex] = 'TRUE';
+                  }
+                });
+              },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(

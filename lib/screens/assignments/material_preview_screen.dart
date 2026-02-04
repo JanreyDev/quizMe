@@ -218,6 +218,19 @@ class _MaterialPreviewScreenState extends State<MaterialPreviewScreen> {
                             ),
                           ],
                         ),
+                        if (q.answer == 'FALSE' &&
+                            q.correction != null &&
+                            q.correction!.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            'CORRECTION: ${q.correction}',
+                            style: TextStyle(
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.bold,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 32),
                       ],
                     );
@@ -294,6 +307,7 @@ class _MaterialPreviewScreenState extends State<MaterialPreviewScreen> {
                                           'question': q.question,
                                           'options': q.options,
                                           'answer': q.answer,
+                                          'correction': q.correction,
                                         },
                                       )
                                       .toList(),
