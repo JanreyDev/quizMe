@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:io';
 import 'add_questions_screen.dart';
 
-class MaterialPreviewScreen extends StatelessWidget {
+class MaterialPreviewScreen extends StatefulWidget {
   final String classCode;
   final String title;
   final String teacherName;
@@ -11,6 +13,8 @@ class MaterialPreviewScreen extends StatelessWidget {
   final String collectionName;
   final String materialTitle;
   final String? existingMaterialId;
+  final File? pdfFile;
+  final String? extractedText;
 
   const MaterialPreviewScreen({
     super.key,
@@ -22,11 +26,35 @@ class MaterialPreviewScreen extends StatelessWidget {
     required this.collectionName,
     required this.materialTitle,
     this.existingMaterialId,
+    this.pdfFile,
+    this.extractedText,
   });
 
   @override
+  State<MaterialPreviewScreen> createState() => _MaterialPreviewScreenState();
+}
+
+class _MaterialPreviewScreenState extends State<MaterialPreviewScreen> {
+  bool _isSaving = false;
+
+  Future<String?> _uploadPdf(File file) async {
+    try {
+      final fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_${file.path.split(Platform.pathSeparator).last}';
+      final ref = FirebaseStorage.instance.ref().child(
+        'materials/pdfs/$fileName',
+      );
+      final uploadTask = await ref.putFile(file);
+      return await uploadTask.ref.getDownloadURL();
+    } catch (e) {
+      print('PDF Upload Error: $e');
+      return null;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    String displayLabel = materialTitle;
+    String displayLabel = widget.materialTitle;
     if (displayLabel.endsWith('s')) {
       displayLabel = displayLabel.substring(0, displayLabel.length - 1);
     }
@@ -41,7 +69,7 @@ class MaterialPreviewScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          classCode,
+          widget.classCode,
           style: const TextStyle(
             color: Colors.black,
             fontSize: 18,
@@ -50,177 +78,284 @@ class MaterialPreviewScreen extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '$displayLabel Type:',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-            ),
-            const SizedBox(height: 24),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$displayLabel Type:',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 16),
 
-            ...questions.map((q) {
-              if (q.type == 'MULTIPLE CHOICE') {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSectionHeader('Multiple Choice'),
-                    _buildQuestionCard(
-                      question: q.question,
-                      options: q.options ?? [],
-                      correctAnswer: q.answer,
+                if (widget.pdfFile != null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 24),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.red.shade100),
                     ),
-                    const SizedBox(height: 16),
-                  ],
-                );
-              } else if (q.type == 'TRUE OR FALSE') {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSectionHeader('TRUE or FALSE'),
-                    Text(
-                      q.question.toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
+                    child: Row(
                       children: [
-                        _buildToggleButton(
-                          'TRUE',
-                          isSelected: q.answer == 'TRUE',
+                        const Icon(
+                          Icons.picture_as_pdf,
+                          color: Colors.red,
+                          size: 32,
                         ),
                         const SizedBox(width: 12),
-                        _buildToggleButton(
-                          'FALSE',
-                          isSelected: q.answer == 'FALSE',
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Attached PDF',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              Text(
+                                widget.pdfFile!.path
+                                    .split(Platform.pathSeparator)
+                                    .last,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade700,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 32),
-                  ],
-                );
-              } else if (q.type == 'ENUMERATION') {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSectionHeader('Enumeration'),
-                    Text(q.question, style: const TextStyle(fontSize: 16)),
-                    const SizedBox(height: 8),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade200),
+                  ),
+
+                if (widget.extractedText != null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 32),
+                    constraints: const BoxConstraints(maxHeight: 400),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'EXTRACTED TEXT PREVIEW:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: Colors.grey,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            child: Text(
+                              widget.extractedText!,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                ...widget.questions.map((q) {
+                  if (q.type == 'MULTIPLE CHOICE') {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionHeader('Multiple Choice'),
+                        _buildQuestionCard(
+                          question: q.question,
+                          options: q.options ?? [],
+                          correctAnswer: q.answer,
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    );
+                  } else if (q.type == 'TRUE OR FALSE') {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionHeader('TRUE or FALSE'),
+                        Text(
+                          q.question.toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            _buildToggleButton(
+                              'TRUE',
+                              isSelected: q.answer == 'TRUE',
+                            ),
+                            const SizedBox(width: 12),
+                            _buildToggleButton(
+                              'FALSE',
+                              isSelected: q.answer == 'FALSE',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+                      ],
+                    );
+                  } else if (q.type == 'ENUMERATION') {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionHeader('Enumeration'),
+                        Text(q.question, style: const TextStyle(fontSize: 16)),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Text(
+                            q.answer,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                      ],
+                    );
+                  } else {
+                    // Identification
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionHeader('Identification'),
+                        _buildPillButton(q.question),
+                        const SizedBox(height: 12),
+                        _buildQuestionInput(
+                          question: 'Answer:',
+                          answer: q.answer,
+                        ),
+                        const SizedBox(height: 32),
+                      ],
+                    );
+                  }
+                }).toList(),
+
+                const SizedBox(height: 48),
+
+                Center(
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isSaving
+                          ? null
+                          : () async {
+                              setState(() => _isSaving = true);
+                              try {
+                                String? pdfUrl;
+                                if (widget.pdfFile != null) {
+                                  pdfUrl = await _uploadPdf(widget.pdfFile!);
+                                }
+
+                                final materialData = {
+                                  'classCode': widget.classCode,
+                                  'title': widget.title,
+                                  'teacherName': widget.teacherName,
+                                  'dueDate': widget.dueDate,
+                                  'isPublished': false,
+                                  'pdfUrl': pdfUrl, // Save the URL
+                                  'extractedText': widget
+                                      .extractedText, // Save the full text
+                                  'questions': widget.questions
+                                      .map(
+                                        (q) => {
+                                          'type': q.type,
+                                          'question': q.question,
+                                          'options': q.options,
+                                          'answer': q.answer,
+                                        },
+                                      )
+                                      .toList(),
+                                };
+
+                                if (widget.existingMaterialId != null) {
+                                  await FirebaseFirestore.instance
+                                      .collection(widget.collectionName)
+                                      .doc(widget.existingMaterialId)
+                                      .update(materialData);
+                                } else {
+                                  materialData['createdAt'] =
+                                      FieldValue.serverTimestamp();
+                                  await FirebaseFirestore.instance
+                                      .collection(widget.collectionName)
+                                      .add(materialData);
+                                }
+                                if (mounted) {
+                                  Navigator.of(
+                                    context,
+                                  ).popUntil((route) => route.isFirst);
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  setState(() => _isSaving = false);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Error saving $displayLabel: $e',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4CAF50),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
                       ),
                       child: Text(
-                        q.answer,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        _isSaving
+                            ? 'Saving...'
+                            : 'Save as ${displayLabel.toLowerCase()}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 32),
-                  ],
-                );
-              } else {
-                // Identification
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSectionHeader('Identification'),
-                    _buildPillButton(q.question),
-                    const SizedBox(height: 12),
-                    _buildQuestionInput(question: 'Answer:', answer: q.answer),
-                    const SizedBox(height: 32),
-                  ],
-                );
-              }
-            }).toList(),
-
-            const SizedBox(height: 48),
-
-            Center(
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    try {
-                      final materialData = {
-                        'classCode': classCode,
-                        'title': title,
-                        'teacherName': teacherName,
-                        'dueDate': dueDate,
-                        'isPublished': false,
-                        'questions': questions
-                            .map(
-                              (q) => {
-                                'type': q.type,
-                                'question': q.question,
-                                'options': q.options,
-                                'answer': q.answer,
-                              },
-                            )
-                            .toList(),
-                      };
-
-                      if (existingMaterialId != null) {
-                        await FirebaseFirestore.instance
-                            .collection(collectionName)
-                            .doc(existingMaterialId)
-                            .update(materialData);
-                      } else {
-                        materialData['createdAt'] =
-                            FieldValue.serverTimestamp();
-                        await FirebaseFirestore.instance
-                            .collection(collectionName)
-                            .add(materialData);
-                      }
-                      if (context.mounted) {
-                        Navigator.of(
-                          context,
-                        ).popUntil((route) => route.isFirst);
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error saving $displayLabel: $e'),
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4CAF50),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    'Save as ${displayLabel.toLowerCase()}',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 24),
+              ],
             ),
-            const SizedBox(height: 24),
-          ],
-        ),
+          ),
+          if (_isSaving) const Center(child: CircularProgressIndicator()),
+        ],
       ),
     );
   }

@@ -397,8 +397,9 @@ class _MaterialsListScreenState extends State<MaterialsListScreen> {
                   MaterialPageRoute(
                     builder: (context) => CreateMaterialDetailsScreen(
                       classCode: widget.classCode,
-                      selectedTypes: types,
-                      itemCount: questions.length.toString(),
+                      selectedRanges: {
+                        for (var t in types) t: '1-${questions.length}',
+                      },
                       collectionName: widget.collectionName,
                       materialTitle: widget.title,
                       existingMaterialId: docId,

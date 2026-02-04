@@ -227,6 +227,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                                 builder: (context) => StudentSubjectViewScreen(
                                   classCode: classData['classCode'] ?? '',
                                   className: classData['name'] ?? '',
+                                  classId: classData['id'] ?? '',
                                 ),
                               ),
                             );

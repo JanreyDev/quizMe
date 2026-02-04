@@ -21,9 +21,15 @@ class UnifiedAssignmentsScreen extends StatefulWidget {
 }
 
 class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
-  String? _selectedMaterialId;
-  String? _selectedCollection;
+  final Set<String> _selectedItems = {}; // Format: "collectionName/docId"
   bool _isPublishing = false;
+  late final Map<String, Stream<QuerySnapshot>> _streams = {
+    for (var cat in _categories)
+      cat['name']!: FirebaseFirestore.instance
+          .collection(cat['name']!)
+          .where('classCode', isEqualTo: widget.classCode)
+          .snapshots(),
+  };
 
   final List<Map<String, String>> _categories = [
     {'name': 'exams', 'title': 'Exams'},
@@ -31,6 +37,11 @@ class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
     {'name': 'activities', 'title': 'Activities'},
     {'name': 'assignments', 'title': 'Assignments'},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   Future<void> _deleteMaterial(
     String collectionName,
@@ -79,22 +90,33 @@ class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
   }
 
   Future<void> _publishMaterial() async {
-    if (_selectedMaterialId == null || _selectedCollection == null) return;
+    if (_selectedItems.isEmpty) return;
     setState(() => _isPublishing = true);
+
+    final batch = FirebaseFirestore.instance.batch();
+
     try {
-      await FirebaseFirestore.instance
-          .collection(_selectedCollection!)
-          .doc(_selectedMaterialId)
-          .update({'isPublished': true});
+      for (final itemIdentifier in _selectedItems) {
+        final parts = itemIdentifier.split('/');
+        if (parts.length != 2) continue;
+
+        final coll = parts[0];
+        final id = parts[1];
+
+        batch.update(FirebaseFirestore.instance.collection(coll).doc(id), {
+          'isPublished': true,
+        });
+      }
+
+      await batch.commit();
 
       if (mounted) {
         setState(() {
-          _selectedMaterialId = null;
-          _selectedCollection = null;
+          _selectedItems.clear();
           _isPublishing = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Published successfully!')),
+          const SnackBar(content: Text('All items published successfully!')),
         );
       }
     } catch (e) {
@@ -102,7 +124,7 @@ class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
         setState(() => _isPublishing = false);
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error publishing: $e')));
+        ).showSnackBar(SnackBar(content: Text('Error publishing items: $e')));
       }
     }
   }
@@ -162,14 +184,9 @@ class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
           ),
         ),
         StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection(collectionName)
-              .where('classCode', isEqualTo: widget.classCode)
-              .snapshots(),
+          stream: _streams[collectionName],
           builder: (context, snapshot) {
             if (snapshot.hasError) return Text('Error: ${snapshot.error}');
-            if (snapshot.connectionState == ConnectionState.waiting)
-              return const SizedBox.shrink();
 
             final docs = snapshot.data?.docs ?? [];
             if (docs.isEmpty) {
@@ -194,9 +211,8 @@ class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
               children: sortedDocs.map((doc) {
                 final data = doc.data() as Map<String, dynamic>;
                 final docId = doc.id;
-                final isSelected =
-                    _selectedMaterialId == docId &&
-                    _selectedCollection == collectionName;
+                final itemKey = '$collectionName/$docId';
+                final isSelected = _selectedItems.contains(itemKey);
                 final isPublished = data['isPublished'] ?? false;
                 final dueDate = data['dueDate'] as Timestamp?;
                 final formattedDate = dueDate != null
@@ -209,11 +225,9 @@ class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
                     onTap: () {
                       setState(() {
                         if (isSelected) {
-                          _selectedMaterialId = null;
-                          _selectedCollection = null;
+                          _selectedItems.remove(itemKey);
                         } else {
-                          _selectedMaterialId = docId;
-                          _selectedCollection = collectionName;
+                          _selectedItems.add(itemKey);
                         }
                       });
                     },
@@ -350,8 +364,9 @@ class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
             MaterialPageRoute(
               builder: (context) => CreateMaterialDetailsScreen(
                 classCode: widget.classCode,
-                selectedTypes: types,
-                itemCount: questions.length.toString(),
+                selectedRanges: {
+                  for (var t in types) t: '1-${questions.length}',
+                },
                 collectionName: collectionName,
                 materialTitle: _categories.firstWhere(
                   (c) => c['name'] == collectionName,
@@ -418,7 +433,7 @@ class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
         children: [
           Expanded(
             child: ElevatedButton(
-              onPressed: (_selectedMaterialId == null || _isPublishing)
+              onPressed: (_selectedItems.isEmpty || _isPublishing)
                   ? null
                   : _publishMaterial,
               style: ElevatedButton.styleFrom(
@@ -440,9 +455,11 @@ class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
                         strokeWidth: 2,
                       ),
                     )
-                  : const Text(
-                      'Upload',
-                      style: TextStyle(
+                  : Text(
+                      _selectedItems.isEmpty
+                          ? 'Upload'
+                          : 'Upload (${_selectedItems.length})',
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),

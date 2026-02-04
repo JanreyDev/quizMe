@@ -19,8 +19,11 @@ class ChooseQuestionsTypeScreen extends StatefulWidget {
 }
 
 class _ChooseQuestionsTypeScreenState extends State<ChooseQuestionsTypeScreen> {
-  final Set<String> _selectedTypes = {};
-  String _selectedItemCount = '1-10';
+  // Store selected ranges: { 'MULTIPLE CHOICE': '1-15', 'ENUMERATION': '16-20' }
+  final Map<String, String> _selectedRanges = {};
+
+  // Controllers for text fields
+  final Map<String, TextEditingController> _controllers = {};
 
   final List<String> _examTypes = [
     'MULTIPLE CHOICE',
@@ -29,14 +32,29 @@ class _ChooseQuestionsTypeScreenState extends State<ChooseQuestionsTypeScreen> {
     'TRUE OR FALSE',
   ];
 
-  final List<String> _itemCounts = ['1-10', '1-20', '1-50'];
+  @override
+  void initState() {
+    super.initState();
+    for (var type in _examTypes) {
+      _controllers[type] = TextEditingController();
+    }
+  }
+
+  @override
+  void dispose() {
+    for (var c in _controllers.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
 
   void _toggleType(String type) {
     setState(() {
-      if (_selectedTypes.contains(type)) {
-        _selectedTypes.remove(type);
+      if (_selectedRanges.containsKey(type)) {
+        _selectedRanges.remove(type);
+        _controllers[type]!.clear();
       } else {
-        _selectedTypes.add(type);
+        _selectedRanges[type] = ''; // Will be updated by controller
       }
     });
   }
@@ -76,77 +94,73 @@ class _ChooseQuestionsTypeScreenState extends State<ChooseQuestionsTypeScreen> {
               children: [
                 const SizedBox(height: 16),
                 Text(
-                  'CHOOSE A TYPE OF $displayTitle',
+                  'CHOOSE TYPES FOR $displayTitle',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.black,
                   ),
                 ),
+                const SizedBox(height: 8),
+                Text(
+                  'Specify the item range for each type (e.g. 1-15)',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                ),
                 const SizedBox(height: 24),
                 ..._examTypes.map(
                   (type) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildExamTypeToggle(type),
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: _buildTypeInputRow(type),
                   ),
                 ),
-                const SizedBox(height: 48),
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 12,
-                      horizontal: 40,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF4FC3F7),
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: const Text(
-                      'NO. OF ITEMS',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                        letterSpacing: 1.1,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: _itemCounts
-                      .map((count) => _buildItemCountPill(count))
-                      .toList(),
-                ),
-                const SizedBox(height: 140), // Space for bottom button
+                const SizedBox(height: 120), // Space for bottom button
               ],
             ),
           ),
           Positioned(
             bottom: 48,
+            left: 24,
             right: 24,
             child: SizedBox(
-              width: 180,
+              width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  if (_selectedTypes.isEmpty) {
+                  // Validate selections
+                  if (_selectedRanges.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Please select at least one ${widget.materialTitle.toLowerCase()} type',
-                        ),
+                      const SnackBar(content: Text('Select at least one type')),
+                    );
+                    return;
+                  }
+
+                  // Check if all selected types have ranges
+                  bool allValid = true;
+                  _selectedRanges.forEach((type, _) {
+                    final range = _controllers[type]!.text.trim();
+                    if (range.isEmpty ||
+                        !RegExp(r'^\d+-\d+$').hasMatch(range)) {
+                      allValid = false;
+                    } else {
+                      _selectedRanges[type] = range;
+                    }
+                  });
+
+                  if (!allValid) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Enter valid ranges (e.g. 1-15)'),
                       ),
                     );
                     return;
                   }
+
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => CreateMaterialDetailsScreen(
                         classCode: widget.classCode,
-                        selectedTypes: _selectedTypes,
-                        itemCount: _selectedItemCount,
+                        selectedRanges:
+                            _selectedRanges, // Pass Map instead of Set
                         collectionName: widget.collectionName,
                         materialTitle: widget.materialTitle,
                       ),
@@ -163,7 +177,7 @@ class _ChooseQuestionsTypeScreenState extends State<ChooseQuestionsTypeScreen> {
                   elevation: 0,
                 ),
                 child: const Text(
-                  'Create',
+                  'PROCEED',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -174,72 +188,78 @@ class _ChooseQuestionsTypeScreenState extends State<ChooseQuestionsTypeScreen> {
     );
   }
 
-  Widget _buildExamTypeToggle(String type) {
-    bool isSelected = _selectedTypes.contains(type);
-    return InkWell(
-      onTap: () => _toggleType(type),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF00E5FF), Color(0xFF00796B)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
+  Widget _buildTypeInputRow(String type) {
+    bool isSelected = _selectedRanges.containsKey(type);
+    return Column(
+      children: [
+        InkWell(
+          onTap: () => _toggleType(type),
           borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            if (isSelected)
-              const Icon(Icons.check, color: Colors.black, size: 36),
-            if (isSelected) const SizedBox(width: 16),
-            Expanded(
-              child: Center(
-                child: Text(
-                  type,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                    letterSpacing: 1.1,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
+            decoration: BoxDecoration(
+              gradient: isSelected
+                  ? const LinearGradient(
+                      colors: [Color(0xFF00E5FF), Color(0xFF00796B)],
+                    )
+                  : LinearGradient(
+                      colors: [Colors.grey.shade200, Colors.grey.shade300],
+                    ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isSelected ? Icons.check_circle : Icons.circle_outlined,
+                  color: isSelected ? Colors.black : Colors.grey,
+                  size: 28,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    type,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? Colors.black : Colors.grey.shade700,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-            if (isSelected)
-              const SizedBox(
-                width: 52,
-              ), // Offset for checkmark to keep text centered
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildItemCountPill(String count) {
-    bool isSelected = _selectedItemCount == count;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedItemCount = count),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 28),
-        decoration: BoxDecoration(
-          color: const Color(0xFF4FC3F7),
-          borderRadius: BorderRadius.circular(25),
-          border: isSelected
-              ? Border.all(color: Colors.blue.shade900, width: 3)
-              : null,
-        ),
-        child: Text(
-          count,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.blue.shade900,
           ),
         ),
-      ),
+        if (isSelected)
+          Padding(
+            padding: const EdgeInsets.only(top: 12, left: 12, right: 12),
+            child: Row(
+              children: [
+                const Text(
+                  'Set Item Range:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextField(
+                    controller: _controllers[type],
+                    decoration: InputDecoration(
+                      hintText: 'e.g. 1-15',
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 16,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

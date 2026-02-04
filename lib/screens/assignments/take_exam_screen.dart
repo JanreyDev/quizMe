@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class TakeExamScreen extends StatefulWidget {
   final String assignmentId;
@@ -31,6 +32,8 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   bool _isSubmitted = false;
+  String? _pdfUrl;
+  String? _extractedText;
   final Map<int, bool?> _manualGrades = {};
 
   @override
@@ -57,6 +60,8 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
 
         final data = assignmentDoc.data();
         final questions = (data?['questions'] as List? ?? []);
+        _pdfUrl = data?['pdfUrl']; // Fetch the PDF URL
+        _extractedText = data?['extractedText']; // Fetch the full text
 
         // If read-only, fetch the student's submission
         if (widget.isReadOnly) {
@@ -117,6 +122,17 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
           _errorMessage = 'Error loading: $e';
           _isLoading = false;
         });
+      }
+    }
+  }
+
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Could not open PDF')));
       }
     }
   }
@@ -335,6 +351,14 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
+        actions: [
+          if (_pdfUrl != null)
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
+              onPressed: () => _launchUrl(_pdfUrl!),
+              tooltip: 'View Reference PDF',
+            ),
+        ],
         centerTitle: true,
       ),
       body: _isLoading
@@ -426,16 +450,73 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
   }
 
   Widget _buildQuestionList() {
+    if (_questions.isEmpty) {
+      return const Center(child: Text('No questions found.'));
+    }
+
+    // Group questions by type for sections
+    final groupedQuestions = <String, List<Map<String, dynamic>>>{};
+    int questionNumber = 1;
+    for (var q in _questions) {
+      final qData = q as Map<String, dynamic>;
+      final type = qData['type'] as String;
+      if (!groupedQuestions.containsKey(type)) {
+        groupedQuestions[type] = [];
+      }
+      final qWithNumber = Map<String, dynamic>.from(qData);
+      qWithNumber['_questionNumber'] = questionNumber++;
+      groupedQuestions[type]!.add(qWithNumber);
+    }
+
     return Column(
       children: [
         Expanded(
-          child: ListView.builder(
+          child: ListView(
             padding: const EdgeInsets.all(24),
-            itemCount: _questions.length,
-            itemBuilder: (context, index) {
-              final q = _questions[index] as Map<String, dynamic>;
-              return _buildQuestionCard(index, q);
-            },
+            children: [
+              if (_extractedText != null) _buildReferenceMaterial(),
+              const SizedBox(height: 16),
+              ...() {
+                final List<Widget> widgets = [];
+                int sectionNum = 1;
+                groupedQuestions.forEach((type, questionsInSection) {
+                  // Section Header
+                  final sectionTitle = type == 'IDENTIFICATION'
+                      ? 'Section $sectionNum: Identification (Write the answer)'
+                      : type == 'ENUMERATION'
+                      ? 'Section $sectionNum: Enumeration'
+                      : type == 'MULTIPLE CHOICE'
+                      ? 'Section $sectionNum: Multiple Choice'
+                      : type == 'TRUE OR FALSE'
+                      ? 'Section $sectionNum: True or False'
+                      : 'Section $sectionNum: $type';
+
+                  widgets.add(
+                    Padding(
+                      padding: const EdgeInsets.only(top: 24, bottom: 16),
+                      child: Text(
+                        sectionTitle,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF2E7D32), // Green like in PDF
+                        ),
+                      ),
+                    ),
+                  );
+
+                  for (var qData in questionsInSection) {
+                    final qIndex = _questions.indexOf(qData);
+                    final qNum = qData['_questionNumber'] as int;
+                    widgets.add(
+                      _buildStructuredQuestionCard(qNum, qIndex, qData),
+                    );
+                  }
+                  sectionNum++;
+                });
+                return widgets;
+              }(),
+            ],
           ),
         ),
         if (widget.studentId == null)
@@ -447,13 +528,213 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
     );
   }
 
+  Widget _buildStructuredQuestionCard(
+    int qNum,
+    int originalIndex,
+    Map<String, dynamic> q,
+  ) {
+    final type = q['type'] as String;
+    final questionText = q['question'] as String;
+    final isTeacherViewing = widget.studentId != null;
+
+    bool isCorrect = false;
+    bool isWrong = false;
+
+    try {
+      final manualGrade = _manualGrades[originalIndex];
+      isCorrect = manualGrade == true;
+      isWrong = manualGrade == false;
+    } catch (e) {}
+
+    return InkWell(
+      onTap: isTeacherViewing
+          ? () => _showGradingModal(originalIndex, q)
+          : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        margin: const EdgeInsets.only(bottom: 24),
+        decoration: isTeacherViewing
+            ? BoxDecoration(
+                color: isCorrect
+                    ? Colors.green.shade50
+                    : isWrong
+                    ? Colors.red.shade50
+                    : Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isCorrect
+                      ? Colors.green.shade200
+                      : isWrong
+                      ? Colors.red.shade200
+                      : Colors.grey.shade300,
+                  width: 2,
+                ),
+              )
+            : null,
+        child: Column(
+          children: [
+            // Question number and premium pill
+            _buildMockupQuestion('$qNum. $questionText'),
+            const SizedBox(height: 24),
+            if (type == 'MULTIPLE CHOICE')
+              _buildStructuredMultipleChoice(
+                originalIndex,
+                q['options'] as List? ?? [],
+              )
+            else if (type == 'TRUE OR FALSE')
+              _buildTrueFalse(originalIndex)
+            else if (type == 'IDENTIFICATION' || type == 'ENUMERATION')
+              _buildIdentification(originalIndex),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMockupQuestion(String text) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold, // Formal bold
+          color: Color(0xFF1B1B4B),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReferenceMaterial() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.description, color: Colors.blue, size: 20),
+              SizedBox(width: 8),
+              Text(
+                'STUDY MATERIAL / REFERENCE',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  letterSpacing: 1.2,
+                  color: Colors.blue,
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 24),
+          Text(
+            _extractedText!,
+            style: const TextStyle(
+              fontSize: 14,
+              height: 1.5,
+              color: Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStructuredMultipleChoice(int qIndex, List options) {
+    final studentAns = _answers[qIndex];
+    return Column(
+      children: options.asMap().entries.map((entry) {
+        final idx = entry.key;
+        final optStr = entry.value.toString();
+        final letter = String.fromCharCode(97 + idx); // a, b, c, d
+        final isSelected = studentAns == optStr;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: InkWell(
+            onTap: widget.isReadOnly
+                ? null
+                : () => setState(() => _answers[qIndex] = optStr),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFFF0F7FF) : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected
+                      ? const Color(0xFF4285F4)
+                      : Colors.grey.shade300,
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? const Color(0xFF4285F4)
+                          : Colors.grey.shade100,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        letter.toUpperCase(),
+                        style: TextStyle(
+                          color: isSelected
+                              ? Colors.white
+                              : Colors.grey.shade600,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      optStr,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: isSelected
+                            ? const Color(0xFF1B1B4B)
+                            : Colors.black87,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                  if (isSelected)
+                    const Icon(
+                      Icons.check_circle,
+                      color: Color(0xFF4285F4),
+                      size: 18,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   Widget _buildCompletionSection() {
     final showCompletedHeader = _allQuestionsAnswered() && !widget.isReadOnly;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Success Header Box - Only show when all answered and not readonly
         if (showCompletedHeader)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -487,8 +768,6 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
             ),
           ),
         if (showCompletedHeader) const SizedBox(height: 16),
-
-        // Submit Button (Hidden in Read-Only)
         if (!widget.isReadOnly)
           SizedBox(
             width: double.infinity,
@@ -537,7 +816,6 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
               ),
             ),
           ),
-
         if (_isSubmitted && !widget.isReadOnly) ...[
           const SizedBox(height: 24),
           const Icon(
@@ -547,169 +825,6 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
           ),
         ],
       ],
-    );
-  }
-
-  Widget _buildQuestionCard(int index, Map<String, dynamic> q) {
-    final type = q['type'] as String;
-    final questionText = q['question'] as String;
-    final correctAns = q['answer'];
-
-    final isTeacherViewing = widget.studentId != null;
-
-    bool isCorrect = false;
-    bool isWrong = false;
-    bool isPending = true;
-
-    try {
-      final manualGrade = _manualGrades[index];
-      isCorrect = manualGrade == true;
-      isWrong = manualGrade == false;
-      isPending = manualGrade == null;
-    } catch (e) {
-      debugPrint('Error accessing manual grade for index $index: $e');
-    }
-
-    return InkWell(
-      onTap: isTeacherViewing ? () => _showGradingModal(index, q) : null,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 24),
-        padding: isTeacherViewing ? const EdgeInsets.all(16) : null,
-        decoration: isTeacherViewing
-            ? BoxDecoration(
-                color: isCorrect
-                    ? Colors.green.shade50
-                    : isWrong
-                    ? Colors.red.shade50
-                    : Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isCorrect
-                      ? Colors.green.shade200
-                      : isWrong
-                      ? Colors.red.shade200
-                      : Colors.grey.shade300,
-                  width: isPending ? 1 : 2,
-                ),
-              )
-            : null,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Question ${index + 1}',
-                  style: TextStyle(
-                    color: Colors.blue[700],
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                if (isTeacherViewing)
-                  Icon(
-                    isCorrect
-                        ? Icons.check_circle
-                        : isWrong
-                        ? Icons.cancel
-                        : Icons.help_outline,
-                    color: isCorrect
-                        ? Colors.green
-                        : isWrong
-                        ? Colors.red
-                        : Colors.grey,
-                    size: 20,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              questionText,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-            ),
-            if (isTeacherViewing &&
-                !isCorrect &&
-                (type == 'MULTIPLE CHOICE' || type == 'TRUE OR FALSE'))
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Correct: $correctAns',
-                  style: const TextStyle(
-                    color: Colors.green,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            const SizedBox(height: 16),
-            if (type == 'MULTIPLE CHOICE')
-              _buildMultipleChoice(index, q['options'] as List? ?? [])
-            else if (type == 'TRUE OR FALSE')
-              _buildTrueFalse(index)
-            else if (type == 'IDENTIFICATION')
-              _buildIdentification(index)
-            else if (type == 'ENUMERATION')
-              _buildIdentification(index),
-            if (!isTeacherViewing) const Divider(height: 40),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMultipleChoice(int qIndex, List options) {
-    final studentAns = _answers[qIndex];
-    Map<String, dynamic>? q;
-    if (qIndex >= 0 && qIndex < _questions.length) {
-      q = _questions[qIndex] as Map<String, dynamic>?;
-    }
-    final correctAns = q?['answer'];
-    final isTeacherViewing = widget.studentId != null;
-    final manualGrade = _manualGrades[qIndex];
-
-    return Column(
-      children: options.map((opt) {
-        final optionStr = opt.toString();
-        bool isSelected = studentAns == optionStr;
-        bool isCorrectChoice = optionStr == correctAns;
-
-        Color? textColor;
-        FontWeight? fontWeight;
-        if (isTeacherViewing) {
-          if (isCorrectChoice) {
-            textColor = Colors.green[700];
-            fontWeight = FontWeight.bold;
-          } else if (isSelected && manualGrade == false) {
-            textColor = Colors.red[700];
-            fontWeight = FontWeight.bold;
-          } else if (isSelected && manualGrade == true) {
-            textColor = Colors.green[700];
-            fontWeight = FontWeight.bold;
-          }
-        }
-
-        return RadioListTile(
-          title: Text(
-            optionStr,
-            style: TextStyle(color: textColor, fontWeight: fontWeight),
-          ),
-          value: optionStr,
-          groupValue: studentAns,
-          activeColor: isTeacherViewing
-              ? (manualGrade == true && isSelected
-                    ? Colors.green
-                    : manualGrade == false && isSelected
-                    ? Colors.red
-                    : isCorrectChoice
-                    ? Colors.green
-                    : null)
-              : null,
-          onChanged: widget.isReadOnly
-              ? null
-              : (val) => setState(() => _answers[qIndex] = val),
-          contentPadding: EdgeInsets.zero,
-        );
-      }).toList(),
     );
   }
 
@@ -735,35 +850,66 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
     final isSelected = studentAns == label;
     final isCorrectChoice = label == correctAns;
 
-    Color? selectedColor = Colors.blue[100];
-    Color? labelColor = isSelected ? Colors.blue[700] : Colors.black;
+    Color bgColor = Colors.white;
+    Color borderColor = Colors.grey.shade300;
+    Color textColor = Colors.black87;
+
+    if (isSelected) {
+      bgColor = const Color(0xFFF0F7FF);
+      borderColor = const Color(0xFF4285F4);
+      textColor = const Color(0xFF1B1B4B);
+    }
 
     if (isTeacherViewing) {
       if (isCorrectChoice) {
-        selectedColor = Colors.green[200];
-        labelColor = Colors.green[900];
+        bgColor = Colors.green.shade50;
+        borderColor = Colors.green;
+        textColor = Colors.green.shade900;
       } else if (isSelected && manualGrade == false) {
-        selectedColor = Colors.red[200];
-        labelColor = Colors.red[900];
+        bgColor = Colors.red.shade50;
+        borderColor = Colors.red;
+        textColor = Colors.red.shade900;
       } else if (isSelected && manualGrade == true) {
-        selectedColor = Colors.green[200];
-        labelColor = Colors.green[900];
+        bgColor = Colors.green.shade50;
+        borderColor = Colors.green;
+        textColor = Colors.green.shade900;
       }
     }
 
-    return ChoiceChip(
-      label: Text(label),
-      selected: isSelected || (isTeacherViewing && isCorrectChoice),
-      onSelected: widget.isReadOnly
-          ? null
-          : (val) => setState(() => _answers[qIndex] = label),
-      selectedColor: selectedColor,
-      showCheckmark: false,
-      labelStyle: TextStyle(
-        color: labelColor,
-        fontWeight: isTeacherViewing && (isCorrectChoice || isSelected)
-            ? FontWeight.bold
-            : FontWeight.normal,
+    return Expanded(
+      child: GestureDetector(
+        onTap: widget.isReadOnly
+            ? null
+            : () => setState(() => _answers[qIndex] = label),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: borderColor, width: 2),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Colors.blue.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: textColor,
+                fontWeight: isSelected || (isTeacherViewing && isCorrectChoice)
+                    ? FontWeight.bold
+                    : FontWeight.w500,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -774,36 +920,51 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
         text: _answers[qIndex]?.toString() ?? '',
       );
     }
-    return TextField(
-      controller: _controllers[qIndex],
-      onChanged: widget.isReadOnly
-          ? null
-          : (val) => setState(() => _answers[qIndex] = val),
-      enabled: !widget.isReadOnly,
-      decoration: InputDecoration(
-        hintText: 'Type your answer here',
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _controllers[qIndex],
+          onChanged: widget.isReadOnly
+              ? null
+              : (val) => setState(() => _answers[qIndex] = val),
+          enabled: !widget.isReadOnly,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+          decoration: InputDecoration(
+            hintText: 'Type your answer...',
+            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 16),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          ),
         ),
-      ),
+        Container(
+          height: 2,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.blue.withOpacity(0.1),
+                Colors.blue,
+                Colors.blue.withOpacity(0.1),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
   Future<void> _turnInAnswers() async {
     setState(() => _isSubmitting = true);
-
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw 'User not authenticated';
 
-      // Convert integer keys to Strings for Firestore compatibility
       final stringAnswers = _answers.map(
         (key, value) => MapEntry(key.toString(), value),
       );
 
-      // Save to submissions collection
       await FirebaseFirestore.instance.collection('submissions').add({
         'assignmentId': widget.assignmentId,
         'studentId': user.uid,
@@ -817,15 +978,12 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
           _isSubmitting = false;
           _isSubmitted = true;
         });
-
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Exam turned in successfully!'),
             backgroundColor: Colors.green,
           ),
         );
-
-        // Optional: Pop after a delay to let them see the checkmark
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) Navigator.pop(context);
         });
@@ -853,8 +1011,8 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Exit exam
+              Navigator.pop(context);
+              Navigator.pop(context);
             },
             child: const Text('EXIT', style: TextStyle(color: Colors.red)),
           ),

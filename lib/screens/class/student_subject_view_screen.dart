@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import '../assignments/student_unified_assignments_screen.dart';
+import '../people/people_list_screen.dart';
 
 class StudentSubjectViewScreen extends StatelessWidget {
   final String classCode;
   final String className;
+  final String classId;
 
   const StudentSubjectViewScreen({
     super.key,
     required this.classCode,
     required this.className,
+    required this.classId,
   });
 
   @override
@@ -22,9 +25,9 @@ class StudentSubjectViewScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          classCode,
-          style: const TextStyle(
+        title: const Text(
+          'Class Dashboard',
+          style: TextStyle(
             color: Colors.black,
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -57,7 +60,7 @@ class StudentSubjectViewScreen extends StatelessWidget {
                   _buildMenuOption(
                     context,
                     icon: Icons.assignment_outlined,
-                    title: 'Assignments',
+                    title: 'School work',
                     onTap: () {
                       Navigator.push(
                         context,
@@ -85,48 +88,20 @@ class StudentSubjectViewScreen extends StatelessWidget {
                     icon: Icons.people_outline,
                     title: 'People',
                     onTap: () {
-                      // Future implementation
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  _buildMenuOption(
-                    context,
-                    icon: Icons.menu_book_outlined,
-                    title: 'Modules',
-                    onTap: () {
-                      // Future implementation
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  _buildMenuOption(
-                    context,
-                    icon: Icons.people_outline,
-                    title: 'People',
-                    onTap: () {
-                      // Future implementation
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PeopleListScreen(
+                            classCode: classCode,
+                            classId: classId,
+                          ),
+                        ),
+                      );
                     },
                   ),
                 ],
               ),
             ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF4A4A8C),
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.list), label: 'To-do'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications_outlined),
-            label: 'Notification',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: 'Profile',
           ),
         ],
       ),
