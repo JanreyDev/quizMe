@@ -4,11 +4,90 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import '../screens/assignments/add_questions_screen.dart';
 
+import 'package:archive/archive.dart';
+
 class AiResult {
   final List<Question> questions;
   final String extractedText;
 
   AiResult({required this.questions, required this.extractedText});
+}
+
+class OfficeTextExtractor {
+  static String extractPptxText(Uint8List bytes) {
+    try {
+      final archive = ZipDecoder().decodeBytes(bytes);
+      final sb = StringBuffer();
+
+      final slideFiles = archive
+          .where(
+            (f) =>
+                f.name.startsWith('ppt/slides/slide') &&
+                f.name.endsWith('.xml'),
+          )
+          .toList();
+
+      // Sort slides numerically slide1, slide2, etc.
+      slideFiles.sort((a, b) {
+        final aNum =
+            int.tryParse(RegExp(r'\d+').firstMatch(a.name)?.group(0) ?? '0') ??
+            0;
+        final bNum =
+            int.tryParse(RegExp(r'\d+').firstMatch(b.name)?.group(0) ?? '0') ??
+            0;
+        return aNum.compareTo(bNum);
+      });
+
+      for (var file in slideFiles) {
+        final content = utf8.decode(file.content as List<int>);
+        // Extract text inside <a:t> tags (Standard PPTX text tags)
+        final regex = RegExp(r'<a:t>(.*?)</a:t>', dotAll: true);
+        final matches = regex.allMatches(content);
+        for (var match in matches) {
+          String t = match.group(1) ?? '';
+          // Basic entity decoding
+          t = t
+              .replaceAll('&amp;', '&')
+              .replaceAll('&lt;', '<')
+              .replaceAll('&gt;', '>')
+              .replaceAll('&quot;', '"')
+              .replaceAll('&apos;', "'");
+          sb.write('$t ');
+        }
+        sb.write('\n');
+      }
+      return sb.toString().trim();
+    } catch (e) {
+      return "Extraction failed: $e";
+    }
+  }
+
+  static String extractDocxText(Uint8List bytes) {
+    try {
+      final archive = ZipDecoder().decodeBytes(bytes);
+      final file = archive.findFile('word/document.xml');
+      if (file == null) return '';
+
+      final content = utf8.decode(file.content as List<int>);
+      final sb = StringBuffer();
+      // Extract text inside <w:t> tags (Standard Word text tags)
+      final regex = RegExp(r'<w:t.*?>(.*?)</w:t>', dotAll: true);
+      final matches = regex.allMatches(content);
+      for (var match in matches) {
+        String t = match.group(1) ?? '';
+        t = t
+            .replaceAll('&amp;', '&')
+            .replaceAll('&lt;', '<')
+            .replaceAll('&gt;', '>')
+            .replaceAll('&quot;', '"')
+            .replaceAll('&apos;', "'");
+        sb.write(t);
+      }
+      return sb.toString().trim();
+    } catch (e) {
+      return "Extraction failed: $e";
+    }
+  }
 }
 
 class AiQuestionService {
@@ -32,7 +111,8 @@ class AiQuestionService {
       DataPart? filePart;
 
       // 1. Handle File Extraction / Preparation
-      if (fileName.toLowerCase().endsWith('.pdf')) {
+      final nameLower = fileName.toLowerCase();
+      if (nameLower.endsWith('.pdf')) {
         try {
           final PdfDocument document = PdfDocument(inputBytes: fileBytes);
           text = PdfTextExtractor(document).extractText();
@@ -41,18 +121,16 @@ class AiQuestionService {
           // Fallback to DataPart if PDF text extraction fails
           filePart = DataPart('application/pdf', fileBytes);
         }
+      } else if (nameLower.endsWith('.pptx')) {
+        text = OfficeTextExtractor.extractPptxText(fileBytes);
+      } else if (nameLower.endsWith('.docx')) {
+        text = OfficeTextExtractor.extractDocxText(fileBytes);
       } else {
-        // For DOCX, PPTX etc, we use DataPart since we don't have local extractors
+        // Fallback for other types - Use DataPart if supported, else text extraction if possible
         String mimeType = 'application/octet-stream';
-        if (fileName.endsWith('.docx'))
-          mimeType =
-              'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-        else if (fileName.endsWith('.doc'))
+        if (nameLower.endsWith('.doc'))
           mimeType = 'application/msword';
-        else if (fileName.endsWith('.pptx'))
-          mimeType =
-              'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-        else if (fileName.endsWith('.ppt'))
+        else if (nameLower.endsWith('.ppt'))
           mimeType = 'application/vnd.ms-powerpoint';
 
         filePart = DataPart(mimeType, fileBytes);
