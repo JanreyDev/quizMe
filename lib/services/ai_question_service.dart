@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import '../screens/assignments/add_questions_screen.dart';
+import '../secrets.dart';
 
 import 'package:archive/archive.dart';
 
@@ -91,9 +92,8 @@ class OfficeTextExtractor {
 }
 
 class AiQuestionService {
-  // IMPORTANT: For production, store this securely (e.g., environment variables)
-  // Get your API key from: https://aistudio.google.com/app/apikey
-  static const String _apiKey = 'AIzaSyBsqFgD_ymtW0Tjy4-3x10gJ3rHiGoKJdg';
+  // Use the key from secrets.dart (which is now in .gitignore)
+  static const String _apiKey = Secrets.geminiApiKey;
 
   static Future<AiResult> generateQuestions({
     required Uint8List fileBytes,
@@ -101,9 +101,9 @@ class AiQuestionService {
     required Map<String, String> selectedRanges,
   }) async {
     try {
-      if (_apiKey == 'REPLACE_WITH_YOUR_GEMINI_API_KEY') {
+      if (_apiKey == 'REPLACE_WITH_YOUR_NEW_KEY' || _apiKey.isEmpty) {
         throw Exception(
-          'Please set your Gemini API key in lib/services/ai_question_service.dart',
+          'Please set your NEW Gemini API key in lib/secrets.dart',
         );
       }
 
