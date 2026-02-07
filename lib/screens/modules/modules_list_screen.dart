@@ -25,6 +25,18 @@ class _ModulesListScreenState extends State<ModulesListScreen> {
   bool _isUploading = false;
   bool _isPublishing = false;
   final Set<String> _selectedItems = {};
+  Stream<QuerySnapshot>? _modulesStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _modulesStream = FirebaseFirestore.instance
+        .collection('classes')
+        .doc(widget.classId)
+        .collection('modules')
+        .orderBy('uploadedAt', descending: true)
+        .snapshots();
+  }
 
   Future<void> _publishModules() async {
     if (_selectedItems.isEmpty) return;
@@ -435,70 +447,70 @@ class _ModulesListScreenState extends State<ModulesListScreen> {
           ),
           // Module Cards List - Dynamic from Firestore
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('classes')
-                  .doc(widget.classId)
-                  .collection('modules')
-                  .orderBy('uploadedAt', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
+            child: _modulesStream == null
+                ? const Center(child: CircularProgressIndicator())
+                : StreamBuilder<QuerySnapshot>(
+                    stream: _modulesStream,
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return Center(child: Text('Error: ${snapshot.error}'));
+                      }
 
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+                      if (snapshot.connectionState == ConnectionState.waiting &&
+                          !snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
 
-                final modules = snapshot.data?.docs ?? [];
+                      final modules = snapshot.data?.docs ?? [];
 
-                if (modules.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'No modules yet.\nClick "Upload" to add one!',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  );
-                }
+                      if (modules.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            'No modules yet.\nClick "Upload" to add one!',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        );
+                      }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  itemCount: modules.length,
-                  itemBuilder: (context, index) {
-                    final moduleDoc = modules[index];
-                    final moduleData = moduleDoc.data() as Map<String, dynamic>;
-                    final docId = moduleDoc.id;
-                    final isSelected = _selectedItems.contains(docId);
-                    final isPublished = moduleData['isPublished'] ?? false;
+                      return ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        itemCount: modules.length,
+                        itemBuilder: (context, index) {
+                          final moduleDoc = modules[index];
+                          final moduleData =
+                              moduleDoc.data() as Map<String, dynamic>;
+                          final docId = moduleDoc.id;
+                          final isSelected = _selectedItems.contains(docId);
+                          final isPublished =
+                              moduleData['isPublished'] ?? false;
 
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            if (isSelected) {
-                              _selectedItems.remove(docId);
-                            } else {
-                              _selectedItems.add(docId);
-                            }
-                          });
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  if (isSelected) {
+                                    _selectedItems.remove(docId);
+                                  } else {
+                                    _selectedItems.add(docId);
+                                  }
+                                });
+                              },
+                              child: _buildModuleCard(
+                                docId: docId,
+                                title: moduleData['title'] ?? 'Untitled Module',
+                                fileType: moduleData['fileType'],
+                                fileUrl: moduleData['fileUrl'],
+                                isSelected: isSelected,
+                                isPublished: isPublished,
+                              ),
+                            ),
+                          );
                         },
-                        child: _buildModuleCard(
-                          docId: docId,
-                          title: moduleData['title'] ?? 'Untitled Module',
-                          fileType: moduleData['fileType'],
-                          fileUrl: moduleData['fileUrl'],
-                          isSelected: isSelected,
-                          isPublished: isPublished,
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+                      );
+                    },
+                  ),
           ),
           // Bottom Buttons
           Padding(

@@ -23,24 +23,24 @@ class UnifiedAssignmentsScreen extends StatefulWidget {
 class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
   final Set<String> _selectedItems = {}; // Format: "collectionName/docId"
   bool _isPublishing = false;
-  late final Map<String, Stream<QuerySnapshot>> _streams = {
-    for (var cat in _categories)
-      cat['name']!: FirebaseFirestore.instance
-          .collection(cat['name']!)
-          .where('classCode', isEqualTo: widget.classCode)
-          .snapshots(),
-  };
-
   final List<Map<String, String>> _categories = [
     {'name': 'exams', 'title': 'Exams'},
     {'name': 'quizzes', 'title': 'Quizzes'},
     {'name': 'activities', 'title': 'Activities'},
     {'name': 'assignments', 'title': 'Assignments'},
   ];
+  Map<String, Stream<QuerySnapshot>>? _streams;
 
   @override
   void initState() {
     super.initState();
+    _streams = {
+      for (var cat in _categories)
+        cat['name']!: FirebaseFirestore.instance
+            .collection(cat['name']!)
+            .where('classCode', isEqualTo: widget.classCode)
+            .snapshots(),
+    };
   }
 
   Future<void> _deleteMaterial(
@@ -184,9 +184,14 @@ class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
           ),
         ),
         StreamBuilder<QuerySnapshot>(
-          stream: _streams[collectionName],
+          stream: _streams?[collectionName],
           builder: (context, snapshot) {
             if (snapshot.hasError) return Text('Error: ${snapshot.error}');
+
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                !snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
             final docs = snapshot.data?.docs ?? [];
             if (docs.isEmpty) {

@@ -147,6 +147,16 @@ class _StudentUnifiedAssignmentsScreenState
           builder: (context, snapshot) {
             if (snapshot.hasError) return Text('Error: ${snapshot.error}');
 
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                !snapshot.hasData) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+
             final docs = snapshot.data?.docs ?? [];
             if (docs.isEmpty) {
               return Text(
