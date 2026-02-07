@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class TakeExamScreen extends StatefulWidget {
   final String assignmentId;
@@ -33,8 +32,6 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   bool _isSubmitted = false;
-  String? _pdfUrl;
-  String? _extractedText;
   final Map<int, bool?> _manualGrades = {};
 
   @override
@@ -61,8 +58,6 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
 
         final data = assignmentDoc.data();
         final questions = (data?['questions'] as List? ?? []);
-        _pdfUrl = data?['pdfUrl']; // Fetch the PDF URL
-        _extractedText = data?['extractedText']; // Fetch the full text
 
         // If read-only, fetch the student's submission
         if (widget.isReadOnly) {
@@ -154,17 +149,6 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
           _errorMessage = 'Error loading: $e';
           _isLoading = false;
         });
-      }
-    }
-  }
-
-  Future<void> _launchUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Could not open PDF')));
       }
     }
   }
@@ -486,104 +470,106 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
   Widget build(BuildContext context) {
     bool isTeacherViewing = widget.studentId != null;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+    return PopScope(
+      canPop: isTeacherViewing || widget.isReadOnly,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        _showExitConfirmation();
+      },
+      child: Scaffold(
         backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.black),
-          onPressed: () => _showExitConfirmation(),
-        ),
-        title: Text(
-          widget.assignmentTitle,
-          style: const TextStyle(
-            color: Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.close, color: Colors.black),
+            onPressed: () => _showExitConfirmation(),
           ),
-        ),
-        actions: [
-          if (_pdfUrl != null)
-            IconButton(
-              icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
-              onPressed: () => _launchUrl(_pdfUrl!),
-              tooltip: 'View Reference PDF',
+          title: Text(
+            widget.assignmentTitle,
+            style: const TextStyle(
+              color: Colors.black,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
             ),
-        ],
-        centerTitle: true,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-          ? Center(child: Text(_errorMessage!))
-          : Column(
-              children: [
-                if (isTeacherViewing)
-                  Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 8,
-                    ),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.blue.shade200),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Auto-Calculated Score:',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          '${_getScore()} / ${_getTotalGradable()}',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                Expanded(child: _buildBody()),
-                if (isTeacherViewing)
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: SizedBox(
+          ),
+          actions: const [],
+          centerTitle: true,
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _errorMessage != null
+            ? Center(child: Text(_errorMessage!))
+            : Column(
+                children: [
+                  if (isTeacherViewing)
+                    Container(
                       width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _isSubmitting ? null : _saveGrades,
-                        icon: _isSubmitting
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.save),
-                        label: Text(
-                          _isSubmitting ? 'Saving...' : 'Save Grading Changes',
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue[600],
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 8,
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Auto-Calculated Score:',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            '${_getScore()} / ${_getTotalGradable()}',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  Expanded(child: _buildBody()),
+                  if (isTeacherViewing)
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _isSubmitting ? null : _saveGrades,
+                          icon: _isSubmitting
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.save),
+                          label: Text(
+                            _isSubmitting
+                                ? 'Saving...'
+                                : 'Save Grading Changes',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue[600],
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
+                ],
+              ),
+      ),
     );
   }
 
@@ -626,8 +612,6 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
           child: ListView(
             padding: const EdgeInsets.all(24),
             children: [
-              if (_extractedText != null) _buildReferenceMaterial(),
-              const SizedBox(height: 16),
               ...() {
                 final List<Widget> widgets = [];
                 int sectionNum = 1;
@@ -686,7 +670,10 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
     Map<String, dynamic> q,
   ) {
     final type = q['type'] as String;
-    final questionText = q['question'] as String;
+    final rawQuestion = q['question'] as String;
+    // Clean question from existing "1.", "1)", etc.
+    final numRegex = RegExp(r'^\d+[\.\)\-\s]+');
+    final questionText = rawQuestion.replaceFirst(numRegex, '').trim();
     final isTeacherViewing = widget.studentId != null;
 
     bool isCorrect = false;
@@ -754,47 +741,6 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
           fontWeight: FontWeight.bold, // Formal bold
           color: Color(0xFF1B1B4B),
         ),
-      ),
-    );
-  }
-
-  Widget _buildReferenceMaterial() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 24),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.description, color: Colors.blue, size: 20),
-              SizedBox(width: 8),
-              Text(
-                'STUDY MATERIAL / REFERENCE',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  letterSpacing: 1.2,
-                  color: Colors.blue,
-                ),
-              ),
-            ],
-          ),
-          const Divider(height: 24),
-          Text(
-            _extractedText!,
-            style: const TextStyle(
-              fontSize: 14,
-              height: 1.5,
-              color: Colors.black87,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1232,19 +1178,26 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Exit Exam?'),
-        content: const Text('Your answers will not be saved.'),
+        title: const Text('ATTENTION: Exit Exam?'),
+        content: const Text(
+          'If you exit now, your work will be lost. You are required to submit the exam to record your score.\n\n'
+          'Are you absolutely sure you want to leave?',
+          style: TextStyle(fontWeight: FontWeight.w500),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('CANCEL'),
+            child: const Text('STAY AND FINISH'),
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context); // Go back to assignments
             },
-            child: const Text('EXIT', style: TextStyle(color: Colors.red)),
+            child: const Text(
+              'EXIT ANYWAY',
+              style: TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),

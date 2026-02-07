@@ -14,6 +14,13 @@ class _StudentDashboardState extends State<StudentDashboard> {
   final TextEditingController _classCodeController = TextEditingController();
   bool _isEnrolling = false;
   int _selectedIndex = 0;
+  Stream<List<Map<String, dynamic>>>? _classesStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _classesStream = _getEnrolledClasses();
+  }
 
   @override
   void dispose() {
@@ -117,6 +124,38 @@ class _StudentDashboardState extends State<StudentDashboard> {
             if (classDoc.exists) {
               final classData = classDoc.data()!;
               classData['id'] = classId;
+              final classCode = classData['classCode'] ?? '';
+
+              // Get published assignments count
+              int assignmentCount = 0;
+              for (String coll in [
+                'exams',
+                'quizzes',
+                'activities',
+                'assignments',
+              ]) {
+                final q = await FirebaseFirestore.instance
+                    .collection(coll)
+                    .where('classCode', isEqualTo: classCode)
+                    .where('isPublished', isEqualTo: true)
+                    .count()
+                    .get();
+                assignmentCount += q.count ?? 0;
+              }
+
+              // Get published modules count
+              final modulesQ = await FirebaseFirestore.instance
+                  .collection('classes')
+                  .doc(classId)
+                  .collection('modules')
+                  .where('isPublished', isEqualTo: true)
+                  .count()
+                  .get();
+              int moduleCount = modulesQ.count ?? 0;
+
+              classData['assignmentCount'] = assignmentCount;
+              classData['moduleCount'] = moduleCount;
+
               classes.add(classData);
             }
           }
@@ -190,7 +229,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
             // Enrolled Classes
             Expanded(
               child: StreamBuilder<List<Map<String, dynamic>>>(
-                stream: _getEnrolledClasses(),
+                stream: _classesStream,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
@@ -330,16 +369,18 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   Widget _buildClassCard(Map<String, dynamic> data) {
+    final classCode = data['classCode'] ?? 'Unknown';
+    final teacherName = data['teacherName'] ?? 'Unknown Teacher';
+    final assignmentCount = data['assignmentCount'] ?? 0;
+    final moduleCount = data['moduleCount'] ?? 0;
+
     return Container(
-      height: 180,
+      height: 130, // Increased height for info row
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF37474F).withOpacity(0.8),
-            const Color(0xFF455A64).withOpacity(0.8),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF27AE60), Color(0xFF1E5151)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
@@ -352,61 +393,59 @@ class _StudentDashboardState extends State<StudentDashboard> {
       ),
       child: Stack(
         children: [
-          // Word cloud background (simplified)
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Opacity(
-                opacity: 0.3,
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children:
-                      [
-                            'Software',
-                            'Engineering',
-                            'Code',
-                            'Development',
-                            'Design',
-                            'Testing',
-                            'Agile',
-                          ]
-                          .map(
-                            (word) => Text(
-                              word,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                ),
-              ),
-            ),
-          ),
           // Class info
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  '${data['classCode'] ?? 'Unknown'}: ${data['name'] ?? 'Unknown Class'}',
+                  classCode,
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Text(
-                  data['teacherName'] ?? 'Unknown Teacher',
+                  'Teacher: $teacherName',
                   style: const TextStyle(fontSize: 14, color: Colors.white70),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.assignment_outlined,
+                      size: 14,
+                      color: Colors.white70,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$assignmentCount Assignments',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white70,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    const Icon(
+                      Icons.folder_outlined,
+                      size: 14,
+                      color: Colors.white70,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$moduleCount Modules',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

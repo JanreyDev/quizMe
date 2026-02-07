@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../assignments/student_unified_assignments_screen.dart';
+import '../modules/student_modules_screen.dart';
 import '../people/people_list_screen.dart';
 
 class StudentSubjectViewScreen extends StatelessWidget {
@@ -79,7 +80,15 @@ class StudentSubjectViewScreen extends StatelessWidget {
                     icon: Icons.menu_book_outlined,
                     title: 'Modules',
                     onTap: () {
-                      // Future implementation
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => StudentModulesScreen(
+                            classCode: classCode,
+                            classId: classId,
+                          ),
+                        ),
+                      );
                     },
                   ),
                   const SizedBox(height: 16),
