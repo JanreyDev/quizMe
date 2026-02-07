@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'take_exam_screen.dart';
+import '../../widgets/student_bottom_navbar.dart';
 
 class StudentUnifiedAssignmentsScreen extends StatefulWidget {
   final String classCode;
@@ -197,6 +198,18 @@ class _StudentUnifiedAssignmentsScreenState
                 );
               },
             ),
+      bottomNavigationBar: StudentBottomNavBar(
+        currentIndex: 0,
+        onTap: (index) {
+          if (index == 0) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('This feature is coming soon!')),
+            );
+          }
+        },
+      ),
     );
   }
 

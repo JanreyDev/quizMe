@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../class/student_subject_view_screen.dart';
+import '../../widgets/student_bottom_navbar.dart';
 
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
@@ -165,8 +166,16 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   void _onBottomNavTap(int index) {
+    if (index == _selectedIndex) return;
     setState(() => _selectedIndex = index);
-    // TODO: Navigate to different pages based on index
+
+    if (index != 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This feature is coming soon!')),
+      );
+      // Reset to dashboard for now since other tabs don't exist
+      setState(() => _selectedIndex = 0);
+    }
   }
 
   @override
@@ -346,24 +355,9 @@ class _StudentDashboardState extends State<StudentDashboard> {
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: StudentBottomNavBar(
         currentIndex: _selectedIndex,
         onTap: _onBottomNavTap,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF4A4A8C),
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.list), label: 'To do'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications_outlined),
-            label: 'Notification',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: 'Profile',
-          ),
-        ],
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../assignments/student_unified_assignments_screen.dart';
 import '../modules/student_modules_screen.dart';
 import '../people/people_list_screen.dart';
+import '../../widgets/student_bottom_navbar.dart';
 
 class StudentSubjectViewScreen extends StatelessWidget {
   final String classCode;
@@ -113,6 +114,18 @@ class StudentSubjectViewScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+      bottomNavigationBar: StudentBottomNavBar(
+        currentIndex: 0,
+        onTap: (index) {
+          if (index == 0) {
+            Navigator.pop(context);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('This feature is coming soon!')),
+            );
+          }
+        },
       ),
     );
   }

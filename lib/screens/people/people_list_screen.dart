@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../widgets/student_bottom_navbar.dart';
 
 class PeopleListScreen extends StatelessWidget {
   final String classCode;
@@ -151,6 +152,18 @@ class PeopleListScreen extends StatelessWidget {
               ),
             ],
           );
+        },
+      ),
+      bottomNavigationBar: StudentBottomNavBar(
+        currentIndex: 0,
+        onTap: (index) {
+          if (index == 0) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('This feature is coming soon!')),
+            );
+          }
         },
       ),
     );

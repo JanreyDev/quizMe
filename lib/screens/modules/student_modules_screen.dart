@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../widgets/student_bottom_navbar.dart';
 
 class StudentModulesScreen extends StatefulWidget {
   final String classCode;
@@ -160,6 +161,18 @@ class _StudentModulesScreenState extends State<StudentModulesScreen> {
                   ),
           ),
         ],
+      ),
+      bottomNavigationBar: StudentBottomNavBar(
+        currentIndex: 0,
+        onTap: (index) {
+          if (index == 0) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('This feature is coming soon!')),
+            );
+          }
+        },
       ),
     );
   }

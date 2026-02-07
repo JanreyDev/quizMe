@@ -482,7 +482,7 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
           backgroundColor: Colors.white,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.close, color: Colors.black),
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
             onPressed: () => _showExitConfirmation(),
           ),
           title: Text(
@@ -1175,6 +1175,12 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
   }
 
   void _showExitConfirmation() {
+    bool isTeacherViewing = widget.studentId != null;
+    if (isTeacherViewing || widget.isReadOnly) {
+      Navigator.pop(context);
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
