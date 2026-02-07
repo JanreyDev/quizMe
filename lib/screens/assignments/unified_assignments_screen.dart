@@ -139,7 +139,7 @@ class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
           title: 'New $typeLabel Available',
           message:
               'A new $coll, "$itemTitle", has been posted for ${widget.classCode}.',
-          type: coll == 'quizzes' ? 'quiz' : 'assignment',
+          type: coll,
           docId: id,
         );
       }

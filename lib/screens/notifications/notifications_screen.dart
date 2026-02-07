@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/student_bottom_navbar.dart';
+import '../assignments/student_unified_assignments_screen.dart';
+import '../modules/student_modules_screen.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
@@ -112,7 +114,9 @@ class NotificationsScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                        ...classDocs.map((doc) => _buildNotificationItem(doc)),
+                        ...classDocs.map(
+                          (doc) => _buildNotificationItem(context, doc),
+                        ),
                       ],
                     );
                   },
@@ -136,7 +140,10 @@ class NotificationsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildNotificationItem(QueryDocumentSnapshot doc) {
+  Widget _buildNotificationItem(
+    BuildContext context,
+    QueryDocumentSnapshot doc,
+  ) {
     final data = doc.data() as Map<String, dynamic>;
     final title = data['title'] ?? 'Notification';
     final message = data['message'] ?? '';
@@ -177,7 +184,32 @@ class NotificationsScreen extends StatelessWidget {
         if (!isRead) {
           NotificationService.markAsRead(doc.id);
         }
-        // TODO: Navigate to the actual item if docId is available
+
+        final classId = data['classId'] as String?;
+        final classCode = data['classCode'] as String?;
+
+        if (classId == null || classCode == null) return;
+
+        if (type.toLowerCase() == 'modules' || type.toLowerCase() == 'module') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  StudentModulesScreen(classCode: classCode, classId: classId),
+            ),
+          );
+        } else {
+          final className = data['className'] as String? ?? 'Class';
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => StudentUnifiedAssignmentsScreen(
+                classCode: classCode,
+                className: className,
+              ),
+            ),
+          );
+        }
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -185,7 +217,7 @@ class NotificationsScreen extends StatelessWidget {
           border: Border(
             bottom: BorderSide(color: Colors.grey[200]!, width: 1),
           ),
-          color: isRead ? Colors.transparent : Colors.blue.withOpacity(0.02),
+          color: isRead ? Colors.transparent : Colors.blue.withOpacity(0.08),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
