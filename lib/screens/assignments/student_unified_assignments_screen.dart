@@ -574,8 +574,17 @@ class _StudentUnifiedAssignmentsScreenState
           borderRadius: isExpanded
               ? const BorderRadius.vertical(top: Radius.circular(24))
               : BorderRadius.circular(24),
-          border: Border.all(color: Colors.greenAccent, width: 2),
+          border: isExpanded
+              ? Border.all(color: const Color(0xFF007D6E), width: 3)
+              : Border.all(color: Colors.greenAccent, width: 2),
           boxShadow: [
+            if (isExpanded)
+              BoxShadow(
+                color: const Color(0xFF007D6E).withOpacity(0.4),
+                spreadRadius: 2,
+                blurRadius: 12,
+                offset: const Offset(0, 0),
+              ),
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
               blurRadius: 8,

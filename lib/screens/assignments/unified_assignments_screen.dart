@@ -273,11 +273,18 @@ class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
         ),
         borderRadius: BorderRadius.circular(24),
         border: isSelected
-            ? Border.all(color: Colors.white, width: 2)
+            ? Border.all(color: const Color(0xFF007D6E), width: 3)
             : (isPublished
                   ? Border.all(color: Colors.greenAccent, width: 2)
                   : null),
         boxShadow: [
+          if (isSelected)
+            BoxShadow(
+              color: const Color(0xFF007D6E).withOpacity(0.4),
+              spreadRadius: 2,
+              blurRadius: 12,
+              offset: const Offset(0, 0),
+            ),
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
             blurRadius: 8,
@@ -419,9 +426,9 @@ class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
                   ? null
                   : _publishMaterial,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF81D4FA),
+                backgroundColor: const Color(0xFF007D6E),
                 disabledBackgroundColor: Colors.grey.shade300,
-                foregroundColor: Colors.white,
+                foregroundColor: Colors.black,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),
