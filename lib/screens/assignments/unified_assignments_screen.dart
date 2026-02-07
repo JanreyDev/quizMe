@@ -259,21 +259,17 @@ class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
     required bool isPublished,
     required Map<String, dynamic> fullData,
   }) {
-    IconData iconData = Icons.assignment;
-    if (collectionName == 'quizzes')
-      iconData = Icons.quiz;
-    else if (collectionName == 'activities')
-      iconData = Icons.edit_document;
-
     return Container(
       height: 90,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: isSelected
-              ? [const Color(0xFF4FC3F7), const Color(0xFF03A9F4)]
-              : [Colors.grey[400]!, Colors.grey[600]!],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF205072), // Darker blue on the edges
+            const Color(0xFF5DADE2), // Lighter blue in the center
+            const Color(0xFF205072),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
         ),
         borderRadius: BorderRadius.circular(24),
         border: isSelected
@@ -291,17 +287,7 @@ class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
       ),
       child: Row(
         children: [
-          const SizedBox(width: 12),
-          Container(
-            width: 56,
-            height: 56,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(iconData, color: Colors.grey[700], size: 28),
-          ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 24),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -312,16 +298,16 @@ class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: Colors.black,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   'Due: $dueDate',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 14,
-                    color: Colors.grey[800],
+                    color: Colors.black87,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -331,11 +317,7 @@ class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
           if (isPublished)
             const Padding(
               padding: EdgeInsets.only(right: 8),
-              child: Icon(
-                Icons.check_circle,
-                color: Colors.greenAccent,
-                size: 24,
-              ),
+              child: Icon(Icons.check_circle, color: Colors.white, size: 24),
             ),
           _buildPopupMenu(collectionName, docId, title, fullData),
           const SizedBox(width: 4),

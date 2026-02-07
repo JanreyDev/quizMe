@@ -92,7 +92,7 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
         'title': widget.title,
         'teacherName': widget.teacherName,
         'dueDate': widget.dueDate,
-        'isPublished': true,
+        'isPublished': false,
         'pdfUrl': pdfUrl,
         'extractedText': widget.extractedText,
         'questions': _questions

@@ -555,12 +555,6 @@ class _StudentUnifiedAssignmentsScreenState
     String docId,
     String? extractedText,
   ) {
-    IconData iconData = Icons.assignment;
-    if (collectionName == 'quizzes')
-      iconData = Icons.quiz;
-    else if (collectionName == 'activities')
-      iconData = Icons.edit_document;
-
     return Opacity(
       opacity: isDone ? 0.7 : 1.0,
       child: Container(
@@ -568,14 +562,19 @@ class _StudentUnifiedAssignmentsScreenState
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: isDone
-                ? [Colors.grey[300]!, Colors.grey[400]!]
-                : [Colors.grey[400]!, Colors.grey[600]!],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+                ? [Colors.grey[300]!, Colors.grey[100]!, Colors.grey[300]!]
+                : [
+                    const Color(0xFF205072),
+                    const Color(0xFF5DADE2),
+                    const Color(0xFF205072),
+                  ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
           ),
           borderRadius: isExpanded
               ? const BorderRadius.vertical(top: Radius.circular(24))
               : BorderRadius.circular(24),
+          border: Border.all(color: Colors.greenAccent, width: 2),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
@@ -586,17 +585,7 @@ class _StudentUnifiedAssignmentsScreenState
         ),
         child: Row(
           children: [
-            const SizedBox(width: 12),
-            Container(
-              width: 56,
-              height: 56,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(iconData, color: Colors.grey[700], size: 28),
-            ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 24),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -607,7 +596,7 @@ class _StudentUnifiedAssignmentsScreenState
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: Colors.black,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -616,18 +605,17 @@ class _StudentUnifiedAssignmentsScreenState
                     isDone ? 'COMPLETED' : 'Due: $dueDate',
                     style: TextStyle(
                       fontSize: 14,
-                      color: isDone ? Colors.green[700] : Colors.grey[800],
+                      color: isDone ? Colors.green[800] : Colors.black87,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
               ),
             ),
-            if (isDone)
-              const Padding(
-                padding: EdgeInsets.only(right: 8),
-                child: Icon(Icons.check_circle, color: Colors.green, size: 28),
-              ),
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: Icon(Icons.check_circle, color: Colors.white, size: 24),
+            ),
             Icon(
               isExpanded ? Icons.expand_less : Icons.expand_more,
               color: isDone ? Colors.grey[600] : Colors.white,
