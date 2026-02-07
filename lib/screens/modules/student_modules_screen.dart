@@ -27,7 +27,6 @@ class _StudentModulesScreenState extends State<StudentModulesScreen> {
         .doc(widget.classId)
         .collection('modules')
         .where('isPublished', isEqualTo: true)
-        .orderBy('uploadedAt', descending: true)
         .snapshots();
   }
 
@@ -47,13 +46,26 @@ class _StudentModulesScreenState extends State<StudentModulesScreen> {
   }
 
   Future<void> _downloadFile(String? url) async {
-    if (url != null && await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    } else {
+    if (url == null || url.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Could not open file')));
+        ).showSnackBar(const SnackBar(content: Text('No file URL available')));
+      }
+      return;
+    }
+
+    try {
+      final Uri uri = Uri.parse(url);
+      // Try launching in external browser first as it's more reliable for downloads
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        throw 'Could not launch $url';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error opening file: $e')));
       }
     }
   }
@@ -110,7 +122,21 @@ class _StudentModulesScreenState extends State<StudentModulesScreen> {
 
                       final modules = snapshot.data?.docs ?? [];
 
-                      if (modules.isEmpty) {
+                      // Sort in-memory to avoid index requirement
+                      final sortedModules = List<QueryDocumentSnapshot>.from(
+                        modules,
+                      );
+                      sortedModules.sort((a, b) {
+                        final aData = a.data() as Map<String, dynamic>;
+                        final bData = b.data() as Map<String, dynamic>;
+                        final aTime = aData['uploadedAt'] as Timestamp?;
+                        final bTime = bData['uploadedAt'] as Timestamp?;
+                        if (aTime == null) return 1;
+                        if (bTime == null) return -1;
+                        return bTime.compareTo(aTime);
+                      });
+
+                      if (sortedModules.isEmpty) {
                         return const Center(
                           child: Text(
                             'No modules published yet.',
@@ -122,10 +148,11 @@ class _StudentModulesScreenState extends State<StudentModulesScreen> {
 
                       return ListView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: 24),
-                        itemCount: modules.length,
+                        itemCount: sortedModules.length,
                         itemBuilder: (context, index) {
                           final moduleData =
-                              modules[index].data() as Map<String, dynamic>;
+                              sortedModules[index].data()
+                                  as Map<String, dynamic>;
                           return _buildModuleCard(moduleData);
                         },
                       );

@@ -353,16 +353,25 @@ class _ModulesListScreenState extends State<ModulesListScreen> {
       icon: const Icon(Icons.more_vert, color: Colors.black),
       onSelected: (value) async {
         if (value == 'download') {
-          if (fileUrl != null && await canLaunchUrl(Uri.parse(fileUrl))) {
-            await launchUrl(
-              Uri.parse(fileUrl),
-              mode: LaunchMode.externalApplication,
-            );
-          } else {
+          if (fileUrl == null || fileUrl.isEmpty) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Could not open file')),
+                const SnackBar(content: Text('No file URL available')),
               );
+            }
+            return;
+          }
+
+          try {
+            final Uri uri = Uri.parse(fileUrl);
+            if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+              throw 'Could not launch $fileUrl';
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('Error opening file: $e')));
             }
           }
         } else if (value == 'delete') {
