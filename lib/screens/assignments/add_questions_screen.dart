@@ -120,7 +120,28 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
             .add(materialData);
       }
       if (mounted) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.existingMaterialId != null
+                  ? 'Successfully updated ${widget.materialTitle.toLowerCase().replaceAll(RegExp(r's$'), '')}'
+                  : 'Successfully created ${widget.materialTitle.toLowerCase().replaceAll(RegExp(r's$'), '')}',
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        // Navigate back to assignments screen (UnifiedAssignmentsScreen)
+        // For new items: pop 4 routes (ChooseAssignmentType -> ChooseQuestions -> Details -> AddQuestions)
+        // For edits: pop 2 routes (Details -> AddQuestions)
+        final popsNeeded = widget.existingMaterialId != null ? 2 : 4;
+        int popCount = 0;
+        Navigator.of(context).popUntil((route) {
+          if (popCount >= popsNeeded) return true;
+          popCount++;
+          return false;
+        });
       }
     } catch (e) {
       if (mounted) {
