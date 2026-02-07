@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../services/notification_service.dart';
 
 class ModulesListScreen extends StatefulWidget {
   final String classCode;
@@ -56,6 +57,34 @@ class _ModulesListScreenState extends State<ModulesListScreen> {
       }
 
       await batch.commit();
+
+      // Send notifications
+      final classDoc = await FirebaseFirestore.instance
+          .collection('classes')
+          .doc(widget.classId)
+          .get();
+      final className = classDoc.data()?['name'] ?? widget.classCode;
+
+      for (var docId in _selectedItems) {
+        // Fetch module title
+        final modDoc = await FirebaseFirestore.instance
+            .collection('classes')
+            .doc(widget.classId)
+            .collection('modules')
+            .doc(docId)
+            .get();
+        final modTitle = modDoc.data()?['title'] ?? 'New Module';
+
+        await NotificationService.sendToClass(
+          classId: widget.classId,
+          classCode: widget.classCode,
+          className: className,
+          title: 'Module Uploaded',
+          message: 'New file uploaded: "$modTitle" in ${widget.classCode}.',
+          type: 'module',
+          docId: docId,
+        );
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

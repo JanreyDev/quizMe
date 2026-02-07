@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'choose_assignment_type_screen.dart';
 import 'submissions_view_screen.dart';
 import 'create_material_details_screen.dart';
+import '../../services/notification_service.dart';
 
 class UnifiedAssignmentsScreen extends StatefulWidget {
   final String classCode;
@@ -109,6 +110,39 @@ class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
       }
 
       await batch.commit();
+
+      // Send notifications
+      final classDoc = await FirebaseFirestore.instance
+          .collection('classes')
+          .doc(widget.classId)
+          .get();
+      final className = classDoc.data()?['name'] ?? widget.classCode;
+
+      for (var itemIdentifier in _selectedItems) {
+        final parts = itemIdentifier.split('/');
+        if (parts.length != 2) continue;
+        final coll = parts[0];
+        final id = parts[1];
+
+        // Fetch item title
+        final itemDoc = await FirebaseFirestore.instance
+            .collection(coll)
+            .doc(id)
+            .get();
+        final itemTitle = itemDoc.data()?['title'] ?? 'New Item';
+        final typeLabel = coll.substring(0, coll.length - 1).toUpperCase();
+
+        await NotificationService.sendToClass(
+          classId: widget.classId,
+          classCode: widget.classCode,
+          className: className,
+          title: 'New $typeLabel Available',
+          message:
+              'A new $coll, "$itemTitle", has been posted for ${widget.classCode}.',
+          type: coll == 'quizzes' ? 'quiz' : 'assignment',
+          docId: id,
+        );
+      }
 
       if (mounted) {
         setState(() {

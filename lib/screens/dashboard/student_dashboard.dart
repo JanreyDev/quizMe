@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../class/student_subject_view_screen.dart';
+import '../notifications/notifications_screen.dart';
 import '../../widgets/student_bottom_navbar.dart';
 
 class StudentDashboard extends StatefulWidget {
@@ -167,15 +168,23 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
   void _onBottomNavTap(int index) {
     if (index == _selectedIndex) return;
-    setState(() => _selectedIndex = index);
+
+    if (index == 2) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+      );
+      return;
+    }
 
     if (index != 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('This feature is coming soon!')),
       );
-      // Reset to dashboard for now since other tabs don't exist
-      setState(() => _selectedIndex = 0);
+      return;
     }
+
+    setState(() => _selectedIndex = index);
   }
 
   @override

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../assignments/student_unified_assignments_screen.dart';
 import '../modules/student_modules_screen.dart';
 import '../people/people_list_screen.dart';
+import '../notifications/notifications_screen.dart';
 import '../../widgets/student_bottom_navbar.dart';
 
 class StudentSubjectViewScreen extends StatelessWidget {
@@ -120,6 +121,13 @@ class StudentSubjectViewScreen extends StatelessWidget {
         onTap: (index) {
           if (index == 0) {
             Navigator.pop(context);
+          } else if (index == 2) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const NotificationsScreen(),
+              ),
+            );
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('This feature is coming soon!')),
