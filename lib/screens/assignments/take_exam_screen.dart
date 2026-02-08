@@ -618,14 +618,15 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
     // Group questions by type for sections
     final groupedQuestions = <String, List<Map<String, dynamic>>>{};
     int questionNumber = 1;
-    for (var q in _questions) {
-      final qData = q as Map<String, dynamic>;
+    for (int i = 0; i < _questions.length; i++) {
+      final qData = _questions[i] as Map<String, dynamic>;
       final type = qData['type'] as String;
       if (!groupedQuestions.containsKey(type)) {
         groupedQuestions[type] = [];
       }
       final qWithNumber = Map<String, dynamic>.from(qData);
       qWithNumber['_questionNumber'] = questionNumber++;
+      qWithNumber['_originalIndex'] = i; // Store the actual index in the list
       groupedQuestions[type]!.add(qWithNumber);
     }
 
@@ -665,7 +666,7 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                   );
 
                   for (var qData in questionsInSection) {
-                    final qIndex = _questions.indexOf(qData);
+                    final qIndex = qData['_originalIndex'] as int;
                     final qNum = qData['_questionNumber'] as int;
                     widgets.add(
                       _buildStructuredQuestionCard(qNum, qIndex, qData),
