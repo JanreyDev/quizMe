@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../auth/login_screen.dart';
 import '../../widgets/student_bottom_navbar.dart';
+import 'settings_screen.dart';
 
 class StudentProfileScreen extends StatelessWidget {
   const StudentProfileScreen({super.key});
@@ -50,6 +51,9 @@ class StudentProfileScreen extends StatelessWidget {
         builder: (context, snapshot) {
           final userData = snapshot.data?.data() as Map<String, dynamic>?;
           final name = userData?['name'] ?? user?.displayName ?? 'User';
+          final age = userData?['age']?.toString() ?? 'Age not set';
+          final course = userData?['course'] ?? 'Course not set';
+          final photoUrl = userData?['photoUrl'] as String?;
 
           return SingleChildScrollView(
             child: Column(
@@ -60,13 +64,19 @@ class StudentProfileScreen extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: Row(
                     children: [
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          shape: BoxShape.circle,
-                        ),
+                      CircleAvatar(
+                        radius: 40,
+                        backgroundColor: Colors.grey[200],
+                        backgroundImage: photoUrl != null
+                            ? NetworkImage(photoUrl)
+                            : null,
+                        child: photoUrl == null
+                            ? const Icon(
+                                Icons.person,
+                                size: 40,
+                                color: Colors.grey,
+                              )
+                            : null,
                       ),
                       const SizedBox(width: 20),
                       Expanded(
@@ -83,7 +93,7 @@ class StudentProfileScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '20 years old',
+                              age == 'Age not set' ? age : '$age years old',
                               style: TextStyle(
                                 fontSize: 16,
                                 color: Colors.blueGrey[300],
@@ -91,7 +101,7 @@ class StudentProfileScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Bachelor of Science in\nComputer Science',
+                              course,
                               style: TextStyle(
                                 fontSize: 15,
                                 color: Colors.blueGrey[300],
@@ -110,8 +120,11 @@ class StudentProfileScreen extends StatelessWidget {
                   icon: Icons.settings_outlined,
                   title: 'Settings',
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Settings coming soon!')),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SettingsScreen(),
+                      ),
                     );
                   },
                 ),
@@ -125,6 +138,7 @@ class StudentProfileScreen extends StatelessWidget {
                   },
                 ),
                 _buildMenuItem(
+                  icon: Icons.logout,
                   title: 'Log Out',
                   onTap: () => _handleLogout(context),
                   isDestructive: true,
