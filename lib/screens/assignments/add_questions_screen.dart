@@ -95,17 +95,22 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
         'isPublished': false,
         'pdfUrl': pdfUrl,
         'extractedText': widget.extractedText,
-        'questions': _questions
-            .map(
-              (q) => {
-                'type': q.type,
-                'question': q.question,
-                'options': q.options,
-                'answer': q.answer,
-                'correction': q.correction,
-              },
-            )
-            .toList(),
+        'questions': (() {
+          // Shuffle the questions once before saving
+          final shuffled = List<Question>.from(_questions)..shuffle();
+          return shuffled.map((q) {
+            final options = q.options != null
+                ? (List<String>.from(q.options!)..shuffle())
+                : null;
+            return {
+              'type': q.type,
+              'question': q.question,
+              'options': options,
+              'answer': q.answer,
+              'correction': q.correction,
+            };
+          }).toList();
+        })(),
       };
 
       if (widget.existingMaterialId != null) {

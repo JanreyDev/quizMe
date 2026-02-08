@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../notifications/notifications_screen.dart';
+import '../profile/student_profile_screen.dart';
 import '../../widgets/student_bottom_navbar.dart';
 
 class PeopleListScreen extends StatelessWidget {
@@ -165,6 +166,13 @@ class PeopleListScreen extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => const NotificationsScreen(),
+              ),
+            );
+          } else if (index == 3) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const StudentProfileScreen(),
               ),
             );
           } else {

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'take_exam_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../profile/student_profile_screen.dart';
 import '../../widgets/student_bottom_navbar.dart';
 
 class StudentUnifiedAssignmentsScreen extends StatefulWidget {
@@ -209,6 +210,13 @@ class _StudentUnifiedAssignmentsScreenState
               context,
               MaterialPageRoute(
                 builder: (context) => const NotificationsScreen(),
+              ),
+            );
+          } else if (index == 3) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const StudentProfileScreen(),
               ),
             );
           } else {

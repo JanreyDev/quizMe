@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../../services/notification_service.dart';
+import '../profile/student_profile_screen.dart';
 import '../../widgets/student_bottom_navbar.dart';
 import '../assignments/student_unified_assignments_screen.dart';
 import '../modules/student_modules_screen.dart';
@@ -130,6 +131,13 @@ class NotificationsScreen extends StatelessWidget {
             Navigator.of(context).popUntil((route) => route.isFirst);
           } else if (index == 2) {
             // Already here
+          } else if (index == 3) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const StudentProfileScreen(),
+              ),
+            );
           } else {
             ScaffoldMessenger.of(
               context,

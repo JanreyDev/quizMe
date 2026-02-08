@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../notifications/notifications_screen.dart';
+import '../profile/student_profile_screen.dart';
 import '../../widgets/student_bottom_navbar.dart';
 
 class StudentModulesScreen extends StatefulWidget {
@@ -173,6 +174,13 @@ class _StudentModulesScreenState extends State<StudentModulesScreen> {
               context,
               MaterialPageRoute(
                 builder: (context) => const NotificationsScreen(),
+              ),
+            );
+          } else if (index == 3) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const StudentProfileScreen(),
               ),
             );
           } else {

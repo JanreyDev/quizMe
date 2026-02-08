@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:math';
 
 class TakeExamScreen extends StatefulWidget {
   final String assignmentId;
@@ -57,12 +58,34 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
         }
 
         final data = assignmentDoc.data();
-        final questions = (data?['questions'] as List? ?? []);
+        final questions = List.from(data?['questions'] as List? ?? []);
+
+        // Perform shuffling if we have a target student (either taking the exam or being graded)
+        // We use a deterministic seed based on studentId and assignmentId
+        // so that the same student always sees the same "random" order.
+        final currentUid = FirebaseAuth.instance.currentUser?.uid;
+        final targetStudentId = widget.studentId ?? currentUid;
+
+        if (targetStudentId != null) {
+          // Use a hash of studentId + assignmentId as a seed
+          final seed = (targetStudentId + widget.assignmentId).hashCode;
+          final random = Random(seed);
+
+          // Shuffle questions
+          questions.shuffle(random);
+
+          // Shuffle options for multiple choice questions
+          for (var q in questions) {
+            if (q is Map<String, dynamic> && q['type'] == 'MULTIPLE CHOICE') {
+              final options = List.from(q['options'] as List? ?? []);
+              options.shuffle(random);
+              q['options'] = options;
+            }
+          }
+        }
 
         // If read-only, fetch the student's submission
         if (widget.isReadOnly) {
-          final targetStudentId =
-              widget.studentId ?? FirebaseAuth.instance.currentUser?.uid;
           if (targetStudentId != null) {
             final submissionQuery = await FirebaseFirestore.instance
                 .collection('submissions')

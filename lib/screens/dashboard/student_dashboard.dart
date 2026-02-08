@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../class/student_subject_view_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../profile/student_profile_screen.dart';
 import '../../widgets/student_bottom_navbar.dart';
 
 class StudentDashboard extends StatefulWidget {
@@ -173,6 +174,14 @@ class _StudentDashboardState extends State<StudentDashboard> {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+      );
+      return;
+    }
+
+    if (index == 3) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const StudentProfileScreen()),
       );
       return;
     }
