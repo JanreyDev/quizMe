@@ -25,7 +25,7 @@ class TakeExamScreen extends StatefulWidget {
 
 class _TakeExamScreenState extends State<TakeExamScreen> {
   final Map<int, dynamic> _answers = {};
-  final Map<int, TextEditingController> _controllers = {};
+  final Map<String, TextEditingController> _controllers = {};
   final Map<int, TextEditingController> _tfControllers = {};
   bool _isSubmitting = false;
 
@@ -168,10 +168,29 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                           .where((e) => e.isNotEmpty)
                           .toList();
 
-                      final studentText = studentAns.toString().toLowerCase();
+                      final List<String> studentInputs = [];
+                      if (studentAns is List) {
+                        studentInputs.addAll(
+                          studentAns.map(
+                            (e) => e.toString().toLowerCase().trim(),
+                          ),
+                        );
+                      } else {
+                        studentInputs.add(
+                          studentAns.toString().toLowerCase().trim(),
+                        );
+                      }
+
                       bool allFound = true;
                       for (final item in correctItems) {
-                        if (!studentText.contains(item)) {
+                        bool foundThisItem = false;
+                        for (final input in studentInputs) {
+                          if (input.contains(item)) {
+                            foundThisItem = true;
+                            break;
+                          }
+                        }
+                        if (!foundThisItem) {
                           allFound = false;
                           break;
                         }
@@ -222,6 +241,14 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
           if (ans.isEmpty) return false;
           if (ans == 'FALSE') return false; // Need correction
         }
+      } else if (q['type'] == 'ENUMERATION') {
+        if (ans is List) {
+          for (var item in ans) {
+            if (item.toString().trim().isEmpty) return false;
+          }
+        } else {
+          if (ans == null || ans.toString().trim().isEmpty) return false;
+        }
       } else if (ans is String && ans.trim().isEmpty) {
         return false;
       }
@@ -232,6 +259,9 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
   @override
   void dispose() {
     for (var controller in _controllers.values) {
+      controller.dispose();
+    }
+    for (var controller in _tfControllers.values) {
       controller.dispose();
     }
     super.dispose();
@@ -732,6 +762,8 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
     final numRegex = RegExp(r'^\d+[\.\)\-\s]+');
     final questionText = rawQuestion.replaceFirst(numRegex, '').trim();
     final isTeacherViewing = widget.studentId != null;
+    final showResultMode =
+        isTeacherViewing || widget.isReadOnly || _isSubmitted;
 
     bool isCorrect = false;
     bool isWrong = false;
@@ -747,9 +779,9 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
           ? () => _showGradingModal(originalIndex, q)
           : null,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
         margin: const EdgeInsets.only(bottom: 24),
-        decoration: isTeacherViewing
+        decoration: showResultMode
             ? BoxDecoration(
                 color: isCorrect
                     ? Colors.green.shade50
@@ -759,23 +791,57 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: isCorrect
-                      ? Colors.green.shade200
+                      ? Colors.green.shade300
                       : isWrong
-                      ? Colors.red.shade200
+                      ? Colors.red.shade300
                       : Colors.grey.shade300,
                   width: 2,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color:
+                        (isCorrect
+                                ? Colors.green
+                                : (isWrong ? Colors.red : Colors.grey))
+                            .withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               )
-            : null,
+            : BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade100, width: 1),
+              ),
         child: Column(
           children: [
             // Question number and premium pill
-            _buildMockupQuestion('$qNum. $questionText'),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _buildMockupQuestion('$qNum. $questionText')),
+                if (showResultMode)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Icon(
+                      isCorrect
+                          ? Icons.check_circle
+                          : (isWrong ? Icons.cancel : Icons.help_outline),
+                      color: isCorrect
+                          ? Colors.green
+                          : (isWrong ? Colors.red : Colors.grey),
+                      size: 28,
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(height: 24),
             if (type == 'MULTIPLE CHOICE')
               _buildStructuredMultipleChoice(
                 originalIndex,
                 q['options'] as List? ?? [],
+                q['answer']?.toString(),
               )
             else if (type == 'TRUE OR FALSE')
               _buildTrueFalse(originalIndex)
@@ -802,14 +868,48 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
     );
   }
 
-  Widget _buildStructuredMultipleChoice(int qIndex, List options) {
+  Widget _buildStructuredMultipleChoice(
+    int qIndex,
+    List options,
+    String? correctAns,
+  ) {
     final studentAns = _answers[qIndex];
+    final isTeacherViewing = widget.studentId != null;
+    final showResultMode =
+        isTeacherViewing || widget.isReadOnly || _isSubmitted;
+
     return Column(
       children: options.asMap().entries.map((entry) {
         final idx = entry.key;
         final optStr = entry.value.toString();
         final letter = String.fromCharCode(65 + idx); // A, B, C, D
         final isSelected = studentAns == optStr;
+        final isCorrectOpt = correctAns == optStr;
+
+        // Colors for result mode
+        Color bgColor = Colors.white;
+        Color borderColor = Colors.grey.shade300;
+        Color accentColor = const Color(0xFF4285F4);
+        Color textColor = Colors.black87;
+
+        if (showResultMode) {
+          if (isCorrectOpt) {
+            bgColor = Colors.green.shade50;
+            borderColor = Colors.green.shade400;
+            accentColor = Colors.green;
+            textColor = Colors.green.shade900;
+          } else if (isSelected && !isCorrectOpt) {
+            bgColor = Colors.red.shade50;
+            borderColor = Colors.red.shade400;
+            accentColor = Colors.red;
+            textColor = Colors.red.shade900;
+          }
+        } else if (isSelected) {
+          bgColor = const Color(0xFFF0F7FF);
+          borderColor = const Color(0xFF4285F4);
+          accentColor = const Color(0xFF4285F4);
+          textColor = const Color(0xFF1B1B4B);
+        }
 
         // Clean option from existing "A)", "A.", etc.
         String cleanedOpt = optStr.trim();
@@ -819,20 +919,20 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: InkWell(
-            onTap: widget.isReadOnly
+            onTap: widget.isReadOnly || _isSubmitted
                 ? null
                 : () => setState(() => _answers[qIndex] = optStr),
             borderRadius: BorderRadius.circular(12),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFFF0F7FF) : Colors.white,
+                color: bgColor,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: isSelected
-                      ? const Color(0xFF4285F4)
-                      : Colors.grey.shade300,
-                  width: 1.5,
+                  color: borderColor,
+                  width: (isSelected || (showResultMode && isCorrectOpt))
+                      ? 2
+                      : 1.5,
                 ),
               ),
               child: Row(
@@ -841,8 +941,8 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? const Color(0xFF4285F4)
+                      color: (isSelected || (showResultMode && isCorrectOpt))
+                          ? accentColor
                           : Colors.grey.shade100,
                       shape: BoxShape.circle,
                     ),
@@ -850,7 +950,8 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                       child: Text(
                         letter,
                         style: TextStyle(
-                          color: isSelected
+                          color:
+                              (isSelected || (showResultMode && isCorrectOpt))
                               ? Colors.white
                               : Colors.grey.shade600,
                           fontSize: 14,
@@ -865,21 +966,29 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                       cleanedOpt,
                       style: TextStyle(
                         fontSize: 15,
-                        color: isSelected
-                            ? const Color(0xFF1B1B4B)
-                            : Colors.black87,
-                        fontWeight: isSelected
+                        color: textColor,
+                        fontWeight:
+                            (isSelected || (showResultMode && isCorrectOpt))
                             ? FontWeight.bold
                             : FontWeight.normal,
                       ),
                     ),
                   ),
-                  if (isSelected)
-                    const Icon(
-                      Icons.check_circle,
-                      color: Color(0xFF4285F4),
-                      size: 20,
-                    ),
+                  if (showResultMode)
+                    if (isCorrectOpt)
+                      const Icon(
+                        Icons.check_circle,
+                        color: Colors.green,
+                        size: 20,
+                      )
+                    else if (isSelected)
+                      const Icon(Icons.cancel, color: Colors.red, size: 20)
+                    else if (isSelected)
+                      const Icon(
+                        Icons.check_circle,
+                        color: Color(0xFF4285F4),
+                        size: 20,
+                      ),
                 ],
               ),
             ),
@@ -1080,7 +1189,10 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
       textColor = const Color(0xFF1B1B4B);
     }
 
-    if (isTeacherViewing) {
+    final showResultMode =
+        isTeacherViewing || widget.isReadOnly || _isSubmitted;
+
+    if (showResultMode) {
       if (isCorrectChoice) {
         bgColor = Colors.green.shade50;
         borderColor = Colors.green;
@@ -1149,53 +1261,224 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
   }
 
   Widget _buildIdentification(int qIndex) {
+    final isTeacherViewing = widget.studentId != null;
+    final isReadOnly = widget.isReadOnly || _isSubmitted;
     Map<String, dynamic>? q;
     if (qIndex >= 0 && qIndex < _questions.length) {
       q = _questions[qIndex] as Map<String, dynamic>?;
     }
 
-    if (!_controllers.containsKey(qIndex)) {
-      _controllers[qIndex] = TextEditingController(
-        text: _answers[qIndex]?.toString() ?? '',
+    final type = q?['type'] ?? 'IDENTIFICATION';
+    final correctAns = q?['answer']?.toString() ?? '';
+
+    if (type == 'ENUMERATION') {
+      // Split by commas or semicolons to get items
+      final items = correctAns
+          .split(RegExp(r'[,;]'))
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+      final itemCount = items.length;
+
+      // Ensure _answers[qIndex] is a List of strings
+      // Ensure _answers[qIndex] is a List of the correct length
+      if (_answers[qIndex] is! List) {
+        final existingAns = _answers[qIndex]?.toString() ?? '';
+        final List<String> newList = List.generate(itemCount, (i) => '');
+        if (existingAns.isNotEmpty && itemCount > 0) {
+          newList[0] = existingAns;
+        }
+        _answers[qIndex] = newList;
+      } else {
+        final currentList = _answers[qIndex] as List;
+        if (currentList.length != itemCount) {
+          // Adjust length if it changed
+          final newList = List.generate(itemCount, (i) {
+            return i < currentList.length ? currentList[i].toString() : '';
+          });
+          _answers[qIndex] = newList;
+        }
+      }
+
+      final List<String> studentItems = List<String>.from(
+        _answers[qIndex] as List,
       );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextField(
-          controller: _controllers[qIndex],
-          onChanged: widget.isReadOnly
-              ? null
-              : (val) => setState(() => _answers[qIndex] = val),
-          enabled: !widget.isReadOnly,
-          maxLines: null, // Allow multiline
-          keyboardType: TextInputType.multiline,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center,
-          decoration: InputDecoration(
-            hintText: (q?['type'] == 'ENUMERATION')
-                ? 'List your answers here...'
-                : 'Type your answer...',
-            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 16),
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(vertical: 8),
-          ),
-        ),
-        Container(
-          height: 2,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.blue.withOpacity(0.1),
-                Colors.blue,
-                Colors.blue.withOpacity(0.1),
-              ],
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ...List.generate(itemCount, (i) {
+            final controllerKey = '${qIndex}_$i';
+            if (!_controllers.containsKey(controllerKey)) {
+              _controllers[controllerKey] = TextEditingController(
+                text: i < studentItems.length ? studentItems[i] : '',
+              );
+            }
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 30,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '${i + 1}.',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: _controllers[controllerKey],
+                      onChanged: isReadOnly
+                          ? null
+                          : (val) {
+                              setState(() {
+                                final currentList = List<String>.from(
+                                  _answers[qIndex] as List,
+                                );
+                                if (i < currentList.length) {
+                                  currentList[i] = val;
+                                  _answers[qIndex] = currentList;
+                                }
+                              });
+                            },
+                      enabled: !isReadOnly,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Enter item ${i + 1}...',
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 8,
+                          horizontal: 12,
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade200),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade200),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+          if ((isTeacherViewing || isReadOnly) &&
+              _manualGrades[qIndex] == false) ...[
+            const SizedBox(height: 4),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade100),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, color: Colors.green, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Correct Answers: $correctAns',
+                      style: TextStyle(
+                        color: Colors.green.shade900,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      );
+    } else {
+      // Regular Identification
+      final controllerKey = qIndex.toString();
+      if (!_controllers.containsKey(controllerKey)) {
+        _controllers[controllerKey] = TextEditingController(
+          text: _answers[qIndex]?.toString() ?? '',
+        );
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _controllers[controllerKey],
+            onChanged: isReadOnly
+                ? null
+                : (val) => setState(() => _answers[qIndex] = val),
+            enabled: !isReadOnly,
+            maxLines: null,
+            keyboardType: TextInputType.multiline,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+            decoration: InputDecoration(
+              hintText: 'Type your answer...',
+              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 16),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 8),
             ),
           ),
-        ),
-      ],
-    );
+          Container(
+            height: 2,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.blue.withOpacity(0.1),
+                  Colors.blue,
+                  Colors.blue.withOpacity(0.1),
+                ],
+              ),
+            ),
+          ),
+          if ((isTeacherViewing || isReadOnly) &&
+              _manualGrades[qIndex] == false) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade100),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, color: Colors.green, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Correct Answer: $correctAns',
+                      style: TextStyle(
+                        color: Colors.green.shade900,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      );
+    }
   }
 
   Future<void> _turnInAnswers() async {
@@ -1246,7 +1529,6 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                 studentAns.toString().toLowerCase().trim() ==
                 correctAns.toString().toLowerCase().trim();
           } else if (type == 'ENUMERATION') {
-            // Basic enumeration keyword check
             final cleanCorrect = correctAns
                 .toString()
                 .replaceAll('[', '')
@@ -1257,10 +1539,25 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                 .where((e) => e.isNotEmpty)
                 .toList();
 
-            final studentText = studentAns.toString().toLowerCase();
+            final List<String> studentInputs = [];
+            if (studentAns is List) {
+              studentInputs.addAll(
+                studentAns.map((e) => e.toString().toLowerCase().trim()),
+              );
+            } else {
+              studentInputs.add(studentAns.toString().toLowerCase().trim());
+            }
+
             bool allFound = true;
             for (final item in correctItems) {
-              if (!studentText.contains(item)) {
+              bool foundThisItem = false;
+              for (final input in studentInputs) {
+                if (input.contains(item)) {
+                  foundThisItem = true;
+                  break;
+                }
+              }
+              if (!foundThisItem) {
                 allFound = false;
                 break;
               }
