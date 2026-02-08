@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../notifications/notifications_screen.dart';
+import '../dashboard/todo_screen.dart';
 import '../profile/student_profile_screen.dart';
 import '../../widgets/student_bottom_navbar.dart';
 
@@ -261,6 +262,11 @@ class _StudentModulesScreenState extends State<StudentModulesScreen> {
             onTap: (index) {
               if (index == 0) {
                 Navigator.of(context).popUntil((route) => route.isFirst);
+              } else if (index == 1) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const TodoScreen()),
+                );
               } else if (index == 2) {
                 Navigator.push(
                   context,
@@ -274,10 +280,6 @@ class _StudentModulesScreenState extends State<StudentModulesScreen> {
                   MaterialPageRoute(
                     builder: (context) => const StudentProfileScreen(),
                   ),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('This feature is coming soon!')),
                 );
               }
             },

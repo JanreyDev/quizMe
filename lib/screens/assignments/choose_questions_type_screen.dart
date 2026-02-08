@@ -85,43 +85,34 @@ class _ChooseQuestionsTypeScreenState extends State<ChooseQuestionsTypeScreen> {
         ),
         centerTitle: true,
       ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 16),
-                Text(
-                  'CHOOSE TYPES FOR $displayTitle',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Specify the item range for each type (e.g. 1-15)',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                ),
-                const SizedBox(height: 24),
-                ..._examTypes.map(
-                  (type) => Padding(
-                    padding: const EdgeInsets.only(bottom: 20),
-                    child: _buildTypeInputRow(type),
-                  ),
-                ),
-                const SizedBox(height: 120), // Space for bottom button
-              ],
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 16),
+            Text(
+              'CHOOSE TYPES FOR $displayTitle',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
             ),
-          ),
-          Positioned(
-            bottom: 48,
-            left: 24,
-            right: 24,
-            child: SizedBox(
+            const SizedBox(height: 8),
+            Text(
+              'Specify the item range for each type (e.g. 1-15)',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+            ),
+            const SizedBox(height: 24),
+            ..._examTypes.map(
+              (type) => Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: _buildTypeInputRow(type),
+              ),
+            ),
+            const SizedBox(height: 48), // Space before button
+            SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
@@ -182,8 +173,9 @@ class _ChooseQuestionsTypeScreenState extends State<ChooseQuestionsTypeScreen> {
                 ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 40), // Bottom padding
+          ],
+        ),
       ),
     );
   }

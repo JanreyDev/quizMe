@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../../services/notification_service.dart';
 import '../profile/student_profile_screen.dart';
+import '../dashboard/todo_screen.dart';
 import '../../widgets/student_bottom_navbar.dart';
 import '../assignments/student_unified_assignments_screen.dart';
 import '../modules/student_modules_screen.dart';
@@ -129,6 +130,11 @@ class NotificationsScreen extends StatelessWidget {
         onTap: (index) {
           if (index == 0) {
             Navigator.of(context).popUntil((route) => route.isFirst);
+          } else if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const TodoScreen()),
+            );
           } else if (index == 2) {
             // Already here
           } else if (index == 3) {
@@ -138,10 +144,6 @@ class NotificationsScreen extends StatelessWidget {
                 builder: (context) => const StudentProfileScreen(),
               ),
             );
-          } else {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('Coming soon!')));
           }
         },
       ),

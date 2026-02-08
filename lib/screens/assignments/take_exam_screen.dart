@@ -834,14 +834,14 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                 });
                 return widgets;
               }(),
+              if (widget.studentId == null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: _buildCompletionSection(),
+                ),
             ],
           ),
         ),
-        if (widget.studentId == null)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: _buildCompletionSection(),
-          ),
       ],
     );
   }

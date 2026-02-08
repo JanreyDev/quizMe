@@ -3,6 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../assignments/take_exam_screen.dart';
+import '../profile/student_profile_screen.dart';
+import '../notifications/notifications_screen.dart';
+import '../../widgets/student_bottom_navbar.dart';
 
 class TodoScreen extends StatefulWidget {
   const TodoScreen({super.key});
@@ -32,7 +35,8 @@ class _TodoScreenState extends State<TodoScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () =>
+              Navigator.of(context).popUntil((route) => route.isFirst),
         ),
         title: const Text(
           'To-do lists',
@@ -143,6 +147,30 @@ class _TodoScreenState extends State<TodoScreen> {
               );
             },
           );
+        },
+      ),
+      bottomNavigationBar: StudentBottomNavBar(
+        currentIndex: 1,
+        onTap: (index) {
+          if (index == 0) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          } else if (index == 1) {
+            // Already here
+          } else if (index == 2) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const NotificationsScreen(),
+              ),
+            );
+          } else if (index == 3) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const StudentProfileScreen(),
+              ),
+            );
+          }
         },
       ),
     );

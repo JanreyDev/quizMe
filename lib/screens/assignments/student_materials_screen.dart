@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'take_exam_screen.dart';
+import '../profile/student_profile_screen.dart';
+import '../dashboard/todo_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../../widgets/student_bottom_navbar.dart';
 
@@ -196,6 +198,11 @@ class StudentMaterialsScreen extends StatelessWidget {
         onTap: (index) {
           if (index == 0) {
             Navigator.of(context).popUntil((route) => route.isFirst);
+          } else if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const TodoScreen()),
+            );
           } else if (index == 2) {
             Navigator.push(
               context,
@@ -203,9 +210,12 @@ class StudentMaterialsScreen extends StatelessWidget {
                 builder: (context) => const NotificationsScreen(),
               ),
             );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('This feature is coming soon!')),
+          } else if (index == 3) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const StudentProfileScreen(),
+              ),
             );
           }
         },

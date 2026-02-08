@@ -205,233 +205,249 @@ class _CreateMaterialDetailsScreenState
       ),
       body: Stack(
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 16),
-                Text(
-                  'Create a Title and Name of your $displayTitle:',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                _buildTextField(
-                  controller: _titleController,
-                  label: 'Title:',
-                  hint: 'Enter $displayTitle title',
-                ),
-                const SizedBox(height: 16),
-                _buildTextField(
-                  controller: _nameController,
-                  label: 'Name:',
-                  hint: 'Enter your name',
-                ),
-                const SizedBox(height: 32),
-                Text(
-                  'Add the due date of the $displayTitle',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                GestureDetector(
-                  onTap: () => _selectDate(context),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 16,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.event_available,
-                              color: Color(0xFF42A5F5),
-                              size: 22,
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              _combinedDateTime == null
-                                  ? 'Click to set deadline'
-                                  : DateFormat(
-                                      'MMM dd, yyyy - hh:mm a',
-                                    ).format(_combinedDateTime!),
-                              style: TextStyle(
-                                color: _combinedDateTime == null
-                                    ? Colors.grey.shade600
-                                    : const Color(0xFF1B1B4B),
-                                fontSize: 16,
-                                fontWeight: _combinedDateTime == null
-                                    ? FontWeight.normal
-                                    : FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const Icon(
-                          Icons.chevron_right,
-                          color: Colors.grey,
-                          size: 20,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                Center(
+          CustomScrollView(
+            slivers: [
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Magic AI Section
-                      if (_pickedFile == null)
-                        InkWell(
-                          onTap: _pickFileAndGenerateQuestions,
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 32),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color(0xFF42A5F5).withOpacity(0.5),
-                                style: BorderStyle.solid,
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                const Icon(
-                                  Icons.cloud_upload_outlined,
-                                  color: Color(0xFF42A5F5),
-                                  size: 40,
-                                ),
-                                const SizedBox(height: 12),
-                                const Text(
-                                  'Upload File to Magic Generate',
-                                  style: TextStyle(
-                                    color: Color(0xFF42A5F5),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'AI will generate the exam from your PDF',
-                                  style: TextStyle(
-                                    color: Colors.blue.shade300,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Create a Title and Name of your $displayTitle:',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      _buildTextField(
+                        controller: _titleController,
+                        label: 'Title:',
+                        hint: 'Enter $displayTitle title',
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _nameController,
+                        label: 'Name:',
+                        hint: 'Enter your name',
+                      ),
+                      const SizedBox(height: 32),
+                      Text(
+                        'Add the due date of the $displayTitle',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      GestureDetector(
+                        onTap: () => _selectDate(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 16,
+                            horizontal: 16,
                           ),
-                        )
-                      else
-                        Container(
-                          padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.green.shade50,
+                            color: Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.green.shade200),
+                            border: Border.all(color: Colors.grey.shade300),
                           ),
                           child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.event_available,
+                                    color: Color(0xFF42A5F5),
+                                    size: 22,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    _combinedDateTime == null
+                                        ? 'Click to set deadline'
+                                        : DateFormat(
+                                            'MMM dd, yyyy - hh:mm a',
+                                          ).format(_combinedDateTime!),
+                                    style: TextStyle(
+                                      color: _combinedDateTime == null
+                                          ? Colors.grey.shade600
+                                          : const Color(0xFF1B1B4B),
+                                      fontSize: 16,
+                                      fontWeight: _combinedDateTime == null
+                                          ? FontWeight.normal
+                                          : FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
                               const Icon(
-                                Icons.picture_as_pdf,
-                                color: Colors.red,
-                                size: 24,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _pickedFile!.path
-                                          .split(RegExp(r'[/\\]'))
-                                          .last,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const Text(
-                                      'File uploaded successfully',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.green,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.delete_outline,
-                                  color: Colors.grey,
-                                ),
-                                onPressed: () =>
-                                    setState(() => _pickedFile = null),
+                                Icons.chevron_right,
+                                color: Colors.grey,
+                                size: 20,
                               ),
                             ],
                           ),
                         ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: 200,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            if (_combinedDateTime == null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Please set the deadline (Date & Time)',
+                      ),
+                      const Spacer(),
+                      Center(
+                        child: Column(
+                          children: [
+                            // Magic AI Section
+                            if (_pickedFile == null)
+                              InkWell(
+                                onTap: _pickFileAndGenerateQuestions,
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 32,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.shade50,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: const Color(
+                                        0xFF42A5F5,
+                                      ).withOpacity(0.5),
+                                      style: BorderStyle.solid,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      const Icon(
+                                        Icons.cloud_upload_outlined,
+                                        color: Color(0xFF42A5F5),
+                                        size: 40,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      const Text(
+                                        'Upload your file',
+                                        style: TextStyle(
+                                          color: Color(0xFF42A5F5),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'AI will generate the exam from your PDF',
+                                        style: TextStyle(
+                                          color: Colors.blue.shade300,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              );
-                              return;
-                            }
-                            _navigateToQuestions();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF42A5F5),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
+                              )
+                            else
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.green.shade200,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.picture_as_pdf,
+                                      color: Colors.red,
+                                      size: 24,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _pickedFile!.path
+                                                .split(RegExp(r'[/\\]'))
+                                                .last,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black87,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const Text(
+                                            'File uploaded successfully',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.green,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        color: Colors.grey,
+                                      ),
+                                      onPressed: () =>
+                                          setState(() => _pickedFile = null),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: 200,
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  if (_combinedDateTime == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Please set the deadline (Date & Time)',
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  _navigateToQuestions();
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF42A5F5),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                child: const Text(
+                                  'Done',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                             ),
-                            elevation: 0,
-                          ),
-                          child: const Text(
-                            'Done',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          ],
                         ),
                       ),
+                      const SizedBox(height: 32),
                     ],
                   ),
                 ),
-                const SizedBox(height: 32),
-              ],
-            ),
+              ),
+            ],
           ),
           if (_isAiLoading)
             Container(
@@ -446,7 +462,7 @@ class _CreateMaterialDetailsScreenState
                         const CircularProgressIndicator(),
                         const SizedBox(height: 20),
                         const Text(
-                          'AI is reading your PDF...',
+                          'QuizMe is reading your file...',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,

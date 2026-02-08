@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../dashboard/todo_screen.dart';
 import 'take_exam_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../profile/student_profile_screen.dart';
@@ -293,6 +294,11 @@ class _StudentUnifiedAssignmentsScreenState
             onTap: (index) {
               if (index == 0) {
                 Navigator.of(context).popUntil((route) => route.isFirst);
+              } else if (index == 1) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const TodoScreen()),
+                );
               } else if (index == 2) {
                 Navigator.push(
                   context,
@@ -306,10 +312,6 @@ class _StudentUnifiedAssignmentsScreenState
                   MaterialPageRoute(
                     builder: (context) => const StudentProfileScreen(),
                   ),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('This feature is coming soon!')),
                 );
               }
             },

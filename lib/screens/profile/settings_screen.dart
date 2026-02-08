@@ -24,6 +24,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isLoading = false;
   bool _isUploading = false;
   bool _isPasswordLoading = false;
+  String? _passwordError;
 
   @override
   void initState() {
@@ -123,27 +124,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _handlePasswordUpdate(StateSetter setModalState) async {
+    // Reset error at the start
+    setModalState(() => _passwordError = null);
+
     final oldPassword = _oldPasswordController.text.trim();
     final newPassword = _newPasswordController.text.trim();
     final verifyPassword = _verifyPasswordController.text.trim();
 
     if (oldPassword.isEmpty || newPassword.isEmpty || verifyPassword.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields')),
-      );
+      setModalState(() => _passwordError = 'Please fill in all fields');
       return;
     }
 
     if (newPassword != verifyPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('New passwords do not match')),
+      setModalState(
+        () => _passwordError =
+            'Verification password does not match new password',
       );
       return;
     }
 
     if (newPassword.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password must be at least 6 characters')),
+      setModalState(
+        () => _passwordError = 'Password must be at least 6 characters',
       );
       return;
     }
@@ -152,30 +155,72 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     try {
       final user = FirebaseAuth.instance.currentUser;
+      print('DEBUG: Attempting password update for: ${user?.email}');
+
       if (user != null && user.email != null) {
         final cred = EmailAuthProvider.credential(
           email: user.email!,
           password: oldPassword,
         );
 
+        print('DEBUG: Reauthenticating...');
         await user.reauthenticateWithCredential(cred);
+
+        print('DEBUG: Updating password...');
         await user.updatePassword(newPassword);
 
         if (mounted) {
           Navigator.pop(context); // Close modal
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Password changed successfully!')),
+            const SnackBar(
+              content: Text('Password changed successfully!'),
+              backgroundColor: Colors.green,
+            ),
           );
           _oldPasswordController.clear();
           _newPasswordController.clear();
           _verifyPasswordController.clear();
+          _passwordError = null;
         }
       }
-    } catch (e) {
+    } on FirebaseAuthException catch (e) {
+      print('DEBUG: FirebaseAuthException code: ${e.code}');
+      String message = 'An error occurred';
+
+      // Handle the most common error codes explicitly
+      switch (e.code) {
+        case 'wrong-password':
+          message = 'The old password you entered is incorrect';
+          break;
+        case 'weak-password':
+          message = 'The new password is too weak';
+          break;
+        case 'user-mismatch':
+          message = 'Credential mismatch';
+          break;
+        case 'requires-recent-login':
+          message = 'Please log out and log in again to change password';
+          break;
+        case 'network-request-failed':
+          message = 'Check your internet connection';
+          break;
+        case 'too-many-requests':
+          message = 'Too many attempts. Please try again later';
+          break;
+        case 'invalid-credential':
+          message = 'The old password you entered is incorrect';
+          break;
+        default:
+          message = e.message ?? 'Authentication error';
+      }
+
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+        setModalState(() => _passwordError = message);
+      }
+    } catch (e) {
+      print('DEBUG: Unexpected error: $e');
+      if (mounted) {
+        setModalState(() => _passwordError = 'Error: ${e.toString()}');
       }
     } finally {
       if (mounted) setModalState(() => _isPasswordLoading = false);
@@ -183,6 +228,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showChangePasswordModal() {
+    _passwordError = null; // Reset error when opening
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -295,6 +341,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                     ),
+                    if (_passwordError != null) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red[50],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red[100]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              color: Colors.red[700],
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _passwordError!,
+                                style: TextStyle(
+                                  color: Colors.red[700],
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 32),
                     SizedBox(
                       width: double.infinity,

@@ -100,13 +100,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _handleGoogleSignIn() {
-    // TODO: Implement Google Sign-In
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Google Sign-In coming soon!')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -197,13 +190,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   _ActionButton(
                     text: _isLoading ? 'Logging in...' : 'Login',
                     onPressed: _isLoading ? () {} : _handleLogin,
-                  ),
-                  const SizedBox(height: 16),
-                  // Google Sign-In button
-                  _ActionButton(
-                    text: 'Sign in with Google',
-                    onPressed: _handleGoogleSignIn,
-                    isPrimary: false,
                   ),
                   const SizedBox(height: 30),
                   // Sign up link
@@ -302,13 +288,8 @@ class _InputField extends StatelessWidget {
 class _ActionButton extends StatelessWidget {
   final String text;
   final VoidCallback onPressed;
-  final bool isPrimary;
 
-  const _ActionButton({
-    required this.text,
-    required this.onPressed,
-    this.isPrimary = true,
-  });
+  const _ActionButton({required this.text, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {

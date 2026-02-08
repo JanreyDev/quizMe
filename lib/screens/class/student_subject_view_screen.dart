@@ -5,6 +5,7 @@ import '../assignments/student_unified_assignments_screen.dart';
 import '../modules/student_modules_screen.dart';
 import '../people/people_list_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../dashboard/todo_screen.dart';
 import '../profile/student_profile_screen.dart';
 import '../../widgets/student_bottom_navbar.dart';
 
@@ -217,7 +218,12 @@ class StudentSubjectViewScreen extends StatelessWidget {
             currentIndex: 0,
             onTap: (index) {
               if (index == 0) {
-                Navigator.pop(context);
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              } else if (index == 1) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const TodoScreen()),
+                );
               } else if (index == 2) {
                 Navigator.push(
                   context,
@@ -231,10 +237,6 @@ class StudentSubjectViewScreen extends StatelessWidget {
                   MaterialPageRoute(
                     builder: (context) => const StudentProfileScreen(),
                   ),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('This feature is coming soon!')),
                 );
               }
             },

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../auth/login_screen.dart';
+import '../dashboard/todo_screen.dart';
 import '../../widgets/student_bottom_navbar.dart';
 import 'settings_screen.dart';
 
@@ -161,6 +162,13 @@ class StudentProfileScreen extends StatelessWidget {
                   onTap: (index) {
                     if (index == 0) {
                       Navigator.of(context).popUntil((route) => route.isFirst);
+                    } else if (index == 1) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const TodoScreen(),
+                        ),
+                      );
                     } else if (index == 2) {
                       Navigator.pop(
                         context,

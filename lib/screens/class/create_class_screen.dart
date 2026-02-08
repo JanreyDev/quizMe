@@ -77,6 +77,7 @@ class _CreateClassScreenState extends State<CreateClassScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
+      resizeToAvoidBottomInset: false, // Prevents background from moving
       body: Stack(
         children: [
           // Decorative circles in background - top right (Matches Login)
@@ -106,69 +107,85 @@ class _CreateClassScreenState extends State<CreateClassScreen> {
             ),
           ),
           // Main content
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 40),
-                  // Back button
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back),
-                    color: const Color(0xFF1A3A5C),
-                  ),
-                  const SizedBox(height: 20),
-                  // Title
-                  const Text(
-                    'Create',
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A3A5C),
-                      height: 1.2,
+          Positioned.fill(
+            child: SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: CustomScrollView(
+                  slivers: [
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 40),
+                            // Back button
+                            IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: const Icon(Icons.arrow_back),
+                              color: const Color(0xFF1A3A5C),
+                            ),
+                            const SizedBox(height: 20),
+                            // Title
+                            const Text(
+                              'Create',
+                              style: TextStyle(
+                                fontSize: 36,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1A3A5C),
+                                height: 1.2,
+                              ),
+                            ),
+                            const Text(
+                              'a Class',
+                              style: TextStyle(
+                                fontSize: 36,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1A3A5C),
+                                height: 1.2,
+                              ),
+                            ),
+                            const SizedBox(height: 60),
+                            // Form Fields
+                            _InputField(
+                              controller: _nameController,
+                              hintText: 'Class Name / Subject',
+                              icon: Icons.class_outlined,
+                            ),
+                            const SizedBox(height: 20),
+                            _InputField(
+                              controller: _sectionController,
+                              hintText: 'Section / Description',
+                              icon: Icons.segment,
+                            ),
+                            const Spacer(),
+                            _InputField(
+                              controller: TextEditingController(
+                                text: user?.displayName ?? 'Teacher',
+                              ),
+                              hintText: 'Instructor',
+                              icon: Icons.person_outline,
+                              enabled: false,
+                            ),
+                            const SizedBox(height: 20),
+                            // Create Button
+                            _ActionButton(
+                              text: _isLoading ? 'Creating...' : 'Create Class',
+                              onPressed: _isLoading
+                                  ? () {}
+                                  : _handleCreateClass,
+                            ),
+                            const SizedBox(height: 40),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                  const Text(
-                    'a Class',
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A3A5C),
-                      height: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 60),
-                  // Form Fields
-                  _InputField(
-                    controller: _nameController,
-                    hintText: 'Class Name / Subject',
-                    icon: Icons.class_outlined,
-                  ),
-                  const SizedBox(height: 20),
-                  _InputField(
-                    controller: _sectionController,
-                    hintText: 'Section / Description',
-                    icon: Icons.segment,
-                  ),
-                  const Spacer(),
-                  _InputField(
-                    controller: TextEditingController(
-                      text: user?.displayName ?? 'Teacher',
-                    ),
-                    hintText: 'Instructor',
-                    icon: Icons.person_outline,
-                    enabled: false,
-                  ),
-                  const SizedBox(height: 20),
-                  // Create Button
-                  _ActionButton(
-                    text: _isLoading ? 'Creating...' : 'Create Class',
-                    onPressed: _isLoading ? () {} : _handleCreateClass,
-                  ),
-                  const SizedBox(height: 40),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
