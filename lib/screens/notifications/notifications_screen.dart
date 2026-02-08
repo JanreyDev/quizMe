@@ -214,6 +214,7 @@ class NotificationsScreen extends StatelessWidget {
               builder: (context) => StudentUnifiedAssignmentsScreen(
                 classCode: classCode,
                 className: className,
+                classId: classId,
               ),
             ),
           );

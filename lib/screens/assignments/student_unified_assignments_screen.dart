@@ -10,11 +10,13 @@ import '../../widgets/student_bottom_navbar.dart';
 class StudentUnifiedAssignmentsScreen extends StatefulWidget {
   final String classCode;
   final String className;
+  final String classId;
 
   const StudentUnifiedAssignmentsScreen({
     super.key,
     required this.classCode,
     required this.className,
+    required this.classId,
   });
 
   @override
@@ -101,6 +103,7 @@ class _StudentUnifiedAssignmentsScreenState
           assignmentTitle: title,
           isReadOnly: isDone,
           collectionName: collectionName,
+          classId: widget.classId,
         ),
       ),
     );
@@ -137,95 +140,182 @@ class _StudentUnifiedAssignmentsScreenState
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          widget.classCode,
-          style: const TextStyle(
-            color: Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: user == null
-          ? const Center(child: Text('Please log in'))
-          : StreamBuilder<QuerySnapshot>(
-              stream: _submissionsStream,
-              builder: (context, submissionSnapshot) {
-                if (submissionSnapshot.hasError)
-                  return Center(
-                    child: Text(
-                      'Submission Error: ${submissionSnapshot.error}',
-                    ),
-                  );
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('classes')
+          .doc(widget.classId)
+          .collection('students')
+          .doc(user?.uid)
+          .snapshots(),
+      builder: (context, enrollmentSnapshot) {
+        final bool isEnrolled =
+            enrollmentSnapshot.hasData && enrollmentSnapshot.data!.exists;
 
-                final submittedIds = (submissionSnapshot.data?.docs ?? [])
-                    .map((doc) => doc['assignmentId'] as String)
-                    .toSet();
+        if (enrollmentSnapshot.connectionState == ConnectionState.waiting &&
+            !enrollmentSnapshot.hasData) {
+          return const Scaffold(
+            backgroundColor: Colors.white,
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
 
-                return ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+        if (!isEnrolled) {
+          return Scaffold(
+            backgroundColor: Colors.white,
+            appBar: AppBar(
+              backgroundColor: Colors.white,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black),
+                onPressed: () => Navigator.pop(context),
+              ),
+              title: const Text(
+                'Access Denied',
+                style: TextStyle(color: Colors.black),
+              ),
+            ),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Text(
-                        widget.className,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
+                    Icon(
+                      Icons.lock_person_outlined,
+                      size: 80,
+                      color: Colors.red[400],
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Access Revoked',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'You are no longer enrolled in ${widget.className}. Please contact your teacher if you believe this is an error.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF42A5F5),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: const Text(
+                          'BACK TO DASHBOARD',
+                          style: TextStyle(color: Colors.white),
                         ),
                       ),
                     ),
-                    ..._categories
-                        .map(
-                          (cat) => _buildCategorySection(
-                            context,
-                            cat['name']!,
-                            cat['title']!,
-                            submittedIds,
-                          ),
-                        )
-                        .toList(),
-                    const SizedBox(height: 32),
                   ],
-                );
-              },
+                ),
+              ),
             ),
-      bottomNavigationBar: StudentBottomNavBar(
-        currentIndex: 0,
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          } else if (index == 2) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const NotificationsScreen(),
+          );
+        }
+
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: Text(
+              widget.classCode,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
               ),
-            );
-          } else if (index == 3) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const StudentProfileScreen(),
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('This feature is coming soon!')),
-            );
-          }
-        },
-      ),
+            ),
+            centerTitle: true,
+          ),
+          body: user == null
+              ? const Center(child: Text('Please log in'))
+              : StreamBuilder<QuerySnapshot>(
+                  stream: _submissionsStream,
+                  builder: (context, submissionSnapshot) {
+                    if (submissionSnapshot.hasError)
+                      return Center(
+                        child: Text(
+                          'Submission Error: ${submissionSnapshot.error}',
+                        ),
+                      );
+
+                    final submittedIds = (submissionSnapshot.data?.docs ?? [])
+                        .map((doc) => doc['assignmentId'] as String)
+                        .toSet();
+
+                    return ListView(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: Text(
+                            widget.className,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        ..._categories
+                            .map(
+                              (cat) => _buildCategorySection(
+                                context,
+                                cat['name']!,
+                                cat['title']!,
+                                submittedIds,
+                              ),
+                            )
+                            .toList(),
+                        const SizedBox(height: 32),
+                      ],
+                    );
+                  },
+                ),
+          bottomNavigationBar: StudentBottomNavBar(
+            currentIndex: 0,
+            onTap: (index) {
+              if (index == 0) {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              } else if (index == 2) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationsScreen(),
+                  ),
+                );
+              } else if (index == 3) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const StudentProfileScreen(),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('This feature is coming soon!')),
+                );
+              }
+            },
+          ),
+        );
+      },
     );
   }
 

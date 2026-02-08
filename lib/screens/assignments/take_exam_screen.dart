@@ -9,6 +9,7 @@ class TakeExamScreen extends StatefulWidget {
   final bool isReadOnly;
   final String? studentId;
   final String collectionName;
+  final String? classId;
 
   const TakeExamScreen({
     super.key,
@@ -17,6 +18,7 @@ class TakeExamScreen extends StatefulWidget {
     this.isReadOnly = false,
     this.studentId,
     required this.collectionName,
+    this.classId,
   });
 
   @override
@@ -551,111 +553,204 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
     bool isReadOnlyView = widget.isReadOnly || _isSubmitted;
     bool showScore = isTeacherViewing || isReadOnlyView;
 
-    return PopScope(
-      canPop: isTeacherViewing || isReadOnlyView,
-      onPopInvoked: (didPop) {
-        if (didPop) return;
-        _showExitConfirmation();
-      },
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
+    Widget buildMainContent() {
+      return PopScope(
+        canPop: isTeacherViewing || isReadOnlyView,
+        onPopInvoked: (didPop) {
+          if (didPop) return;
+          _showExitConfirmation();
+        },
+        child: Scaffold(
           backgroundColor: Colors.white,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black),
-            onPressed: () => isReadOnlyView || isTeacherViewing
-                ? Navigator.pop(context)
-                : _showExitConfirmation(),
-          ),
-          title: Text(
-            widget.assignmentTitle,
-            style: const TextStyle(
-              color: Colors.black,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black),
+              onPressed: () => isReadOnlyView || isTeacherViewing
+                  ? Navigator.pop(context)
+                  : _showExitConfirmation(),
             ),
+            title: Text(
+              widget.assignmentTitle,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            actions: const [],
+            centerTitle: true,
           ),
-          actions: const [],
-          centerTitle: true,
-        ),
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _errorMessage != null
-            ? Center(child: Text(_errorMessage!))
-            : Column(
-                children: [
-                  if (showScore)
-                    Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 8,
+          body: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _errorMessage != null
+              ? Center(child: Text(_errorMessage!))
+              : Column(
+                  children: [
+                    if (showScore)
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 8,
+                        ),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.green.shade200),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              isTeacherViewing
+                                  ? 'Reviewing Score:'
+                                  : 'Your Score:',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              '${_getScore()} / ${_getTotalGradable()}',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.green.shade200),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            isTeacherViewing
-                                ? 'Reviewing Score:'
-                                : 'Your Score:',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            '${_getScore()} / ${_getTotalGradable()}',
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green,
+                    Expanded(child: _buildBody()),
+                    if (isTeacherViewing)
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _isSubmitting ? null : _saveGrades,
+                            icon: _isSubmitting
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.save),
+                            label: Text(
+                              _isSubmitting
+                                  ? 'Saving...'
+                                  : 'Save Grading Changes',
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue[600],
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  Expanded(child: _buildBody()),
-                  if (isTeacherViewing)
-                    Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: SizedBox(
+                  ],
+                ),
+        ),
+      );
+    }
+
+    // Enrollment Guard for students
+    if (widget.classId != null && !isTeacherViewing) {
+      return StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('classes')
+            .doc(widget.classId)
+            .collection('students')
+            .doc(FirebaseAuth.instance.currentUser?.uid)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Scaffold(
+              backgroundColor: Colors.white,
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          if (!snapshot.data!.exists) {
+            return Scaffold(
+              backgroundColor: Colors.white,
+              appBar: AppBar(
+                backgroundColor: Colors.white,
+                elevation: 0,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.black),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                title: const Text(
+                  'Access Denied',
+                  style: TextStyle(color: Colors.black),
+                ),
+              ),
+              body: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.lock_person_outlined,
+                        size: 80,
+                        color: Colors.red[400],
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Access Revoked',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'You are no longer enrolled in this class. Your access to this ${widget.collectionName.substring(0, widget.collectionName.length - 1)} has been revoked.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                      ),
+                      const SizedBox(height: 32),
+                      SizedBox(
                         width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _isSubmitting ? null : _saveGrades,
-                          icon: _isSubmitting
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(Icons.save),
-                          label: Text(
-                            _isSubmitting
-                                ? 'Saving...'
-                                : 'Save Grading Changes',
-                          ),
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue[600],
-                            foregroundColor: Colors.white,
+                            backgroundColor: const Color(0xFF42A5F5),
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
                             ),
                           ),
+                          child: const Text(
+                            'BACK TO DASHBOARD',
+                            style: TextStyle(color: Colors.white),
+                          ),
                         ),
                       ),
-                    ),
-                ],
+                    ],
+                  ),
+                ),
               ),
-      ),
-    );
+            );
+          }
+          return buildMainContent();
+        },
+      );
+    }
+
+    return buildMainContent();
   }
 
   Widget _buildBody() {

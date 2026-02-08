@@ -24,38 +24,46 @@ class StudentProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Profile',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: false,
-      ),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(user?.uid)
-            .snapshots(),
-        builder: (context, snapshot) {
-          final userData = snapshot.data?.data() as Map<String, dynamic>?;
-          final name = userData?['name'] ?? user?.displayName ?? 'User';
-          final age = userData?['age']?.toString() ?? 'Age not set';
-          final course = userData?['course'] ?? 'Course not set';
-          final photoUrl = userData?['photoUrl'] as String?;
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(user?.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            backgroundColor: Colors.white,
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
 
-          return SingleChildScrollView(
+        final userData = snapshot.data?.data() as Map<String, dynamic>?;
+        final name = userData?['name'] ?? user?.displayName ?? 'User';
+        final age = userData?['age']?.toString() ?? 'Age not set';
+        final course = userData?['course'] ?? 'Course not set';
+        final photoUrl = userData?['photoUrl'] as String?;
+        final role = userData?['role']?.toString().toUpperCase() ?? 'STUDENT';
+
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: const Text(
+              'Profile',
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            centerTitle: false,
+          ),
+          body: SingleChildScrollView(
             child: Column(
               children: [
                 const SizedBox(height: 20),
@@ -100,14 +108,15 @@ class StudentProfileScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 2),
-                            Text(
-                              course,
-                              style: TextStyle(
-                                fontSize: 15,
-                                color: Colors.blueGrey[300],
-                                height: 1.2,
+                            if (role == 'STUDENT')
+                              Text(
+                                course,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: Colors.blueGrey[300],
+                                  height: 1.2,
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ),
@@ -145,26 +154,28 @@ class StudentProfileScreen extends StatelessWidget {
                 ),
               ],
             ),
-          );
-        },
-      ),
-      bottomNavigationBar: StudentBottomNavBar(
-        currentIndex: 3, // Profile tab
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          } else if (index == 2) {
-            Navigator.pop(
-              context,
-            ); // Go back if we came from notifications, usually though we'd want a proper nav stack
-            // For now, consistent with other screens:
-            Navigator.pushReplacementNamed(
-              context,
-              '/notifications',
-            ); // This is a placeholder for better routing
-          }
-        },
-      ),
+          ),
+          bottomNavigationBar: role == 'STUDENT'
+              ? StudentBottomNavBar(
+                  currentIndex: 3, // Profile tab
+                  onTap: (index) {
+                    if (index == 0) {
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    } else if (index == 2) {
+                      Navigator.pop(
+                        context,
+                      ); // Go back if we came from notifications, usually though we'd want a proper nav stack
+                      // For now, consistent with other screens:
+                      Navigator.pushReplacementNamed(
+                        context,
+                        '/notifications',
+                      ); // This is a placeholder for better routing
+                    }
+                  },
+                )
+              : null,
+        );
+      },
     );
   }
 

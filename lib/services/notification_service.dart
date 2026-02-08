@@ -47,6 +47,35 @@ class NotificationService {
     }
   }
 
+  /// Sends a notification to a single student.
+  static Future<void> sendToStudent({
+    required String studentId,
+    required String classId,
+    required String classCode,
+    required String className,
+    required String title,
+    required String message,
+    required String type,
+    String? docId,
+  }) async {
+    try {
+      await _firestore.collection('notifications').add({
+        'studentId': studentId,
+        'title': title,
+        'message': message,
+        'type': type,
+        'classId': classId,
+        'classCode': classCode,
+        'className': className,
+        'docId': docId,
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error sending individual notification: $e');
+    }
+  }
+
   /// Fetches notifications for a specific student, sorted by newest first.
   static Stream<QuerySnapshot> getNotifications(String studentId) {
     return _firestore
