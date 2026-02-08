@@ -127,33 +127,59 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                   _manualGrades[i] =
                       existingManualGrades[i.toString()] as bool?;
                 } else {
-                  // Otherwise, auto-grade if objective
-                  if (type == 'MULTIPLE CHOICE' || type == 'TRUE OR FALSE') {
-                    if (type == 'TRUE OR FALSE') {
-                      final studentAns = _answers[i];
+                  // Auto-grade if missing
+                  final studentAns = _answers[i];
+                  final correctAns = q['answer'];
+                  bool isCorrect = false;
+
+                  if (studentAns != null) {
+                    if (type == 'MULTIPLE CHOICE') {
+                      isCorrect =
+                          studentAns.toString().trim().toUpperCase() ==
+                          correctAns.toString().trim().toUpperCase();
+                    } else if (type == 'TRUE OR FALSE') {
                       if (studentAns is Map) {
                         final choice = studentAns['choice'];
                         final correction = studentAns['correction'];
                         final isChoiceCorrect = choice == q['answer'];
                         if (choice == 'FALSE') {
-                          // For FALSE, both choice and correction must be right (basic auto-grade)
                           final isCorrectionCorrect =
-                              correction?.toString().toLowerCase() ==
-                              q['correction']?.toString().toLowerCase();
-                          _manualGrades[i] =
-                              isChoiceCorrect && isCorrectionCorrect;
+                              correction?.toString().toLowerCase().trim() ==
+                              q['correction']?.toString().toLowerCase().trim();
+                          isCorrect = isChoiceCorrect && isCorrectionCorrect;
                         } else {
-                          _manualGrades[i] = isChoiceCorrect;
+                          isCorrect = isChoiceCorrect;
                         }
                       } else {
-                        _manualGrades[i] = studentAns == q['answer'];
+                        isCorrect = studentAns == q['answer'];
                       }
-                    } else {
-                      _manualGrades[i] = _answers[i] == q['answer'];
+                    } else if (type == 'IDENTIFICATION') {
+                      isCorrect =
+                          studentAns.toString().toLowerCase().trim() ==
+                          correctAns.toString().toLowerCase().trim();
+                    } else if (type == 'ENUMERATION') {
+                      final cleanCorrect = correctAns
+                          .toString()
+                          .replaceAll('[', '')
+                          .replaceAll(']', '');
+                      final correctItems = cleanCorrect
+                          .split(RegExp(r'[,;]'))
+                          .map((e) => e.trim().toLowerCase())
+                          .where((e) => e.isNotEmpty)
+                          .toList();
+
+                      final studentText = studentAns.toString().toLowerCase();
+                      bool allFound = true;
+                      for (final item in correctItems) {
+                        if (!studentText.contains(item)) {
+                          allFound = false;
+                          break;
+                        }
+                      }
+                      isCorrect = allFound && correctItems.isNotEmpty;
                     }
-                  } else {
-                    _manualGrades[i] = null; // Pending
                   }
+                  _manualGrades[i] = isCorrect;
                 }
               }
             }
@@ -492,9 +518,11 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
   @override
   Widget build(BuildContext context) {
     bool isTeacherViewing = widget.studentId != null;
+    bool isReadOnlyView = widget.isReadOnly || _isSubmitted;
+    bool showScore = isTeacherViewing || isReadOnlyView;
 
     return PopScope(
-      canPop: isTeacherViewing || widget.isReadOnly,
+      canPop: isTeacherViewing || isReadOnlyView,
       onPopInvoked: (didPop) {
         if (didPop) return;
         _showExitConfirmation();
@@ -506,7 +534,9 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.black),
-            onPressed: () => _showExitConfirmation(),
+            onPressed: () => isReadOnlyView || isTeacherViewing
+                ? Navigator.pop(context)
+                : _showExitConfirmation(),
           ),
           title: Text(
             widget.assignmentTitle,
@@ -525,7 +555,7 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
             ? Center(child: Text(_errorMessage!))
             : Column(
                 children: [
-                  if (isTeacherViewing)
+                  if (showScore)
                     Container(
                       width: double.infinity,
                       margin: const EdgeInsets.symmetric(
@@ -534,23 +564,25 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
                       ),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
+                        color: Colors.green.shade50,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue.shade200),
+                        border: Border.all(color: Colors.green.shade200),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Auto-Calculated Score:',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                          Text(
+                            isTeacherViewing
+                                ? 'Reviewing Score:'
+                                : 'Your Score:',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           Text(
                             '${_getScore()} / ${_getTotalGradable()}',
                             style: const TextStyle(
-                              fontSize: 20,
+                              fontSize: 24,
                               fontWeight: FontWeight.bold,
-                              color: Colors.blue,
+                              color: Colors.green,
                             ),
                           ),
                         ],
@@ -617,17 +649,15 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
 
     // Group questions by type for sections
     final groupedQuestions = <String, List<Map<String, dynamic>>>{};
-    int questionNumber = 1;
     for (int i = 0; i < _questions.length; i++) {
       final qData = _questions[i] as Map<String, dynamic>;
       final type = qData['type'] as String;
       if (!groupedQuestions.containsKey(type)) {
         groupedQuestions[type] = [];
       }
-      final qWithNumber = Map<String, dynamic>.from(qData);
-      qWithNumber['_questionNumber'] = questionNumber++;
-      qWithNumber['_originalIndex'] = i; // Store the actual index in the list
-      groupedQuestions[type]!.add(qWithNumber);
+      final qWithMeta = Map<String, dynamic>.from(qData);
+      qWithMeta['_originalIndex'] = i;
+      groupedQuestions[type]!.add(qWithMeta);
     }
 
     return Column(
@@ -639,6 +669,9 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
               ...() {
                 final List<Widget> widgets = [];
                 int sectionNum = 1;
+                int displayQuestionNumber =
+                    1; // Start sequential numbering here
+
                 groupedQuestions.forEach((type, questionsInSection) {
                   // Section Header
                   final sectionTitle = type == 'IDENTIFICATION'
@@ -667,7 +700,7 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
 
                   for (var qData in questionsInSection) {
                     final qIndex = qData['_originalIndex'] as int;
-                    final qNum = qData['_questionNumber'] as int;
+                    final qNum = displayQuestionNumber++; // Assign number here
                     widgets.add(
                       _buildStructuredQuestionCard(qNum, qIndex, qData),
                     );
@@ -945,10 +978,20 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
           ),
         if (_isSubmitted && !widget.isReadOnly) ...[
           const SizedBox(height: 24),
-          const Icon(
-            Icons.check_circle_outline,
-            size: 60,
-            color: Color(0xFF1D2428),
+          const Icon(Icons.check_circle, size: 80, color: Colors.green),
+          const SizedBox(height: 16),
+          const Text(
+            'Exam Submitted Successfully!',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.green,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Final Score: ${_getScore()} / ${_getTotalGradable()}',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
           ),
         ],
       ],
@@ -1165,11 +1208,79 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
         (key, value) => MapEntry(key.toString(), value),
       );
 
+      // Auto-grading logic
+      final manualGrades = <String, bool?>{};
+      int score = 0;
+
+      for (int i = 0; i < _questions.length; i++) {
+        final q = _questions[i] as Map<String, dynamic>;
+        final type = q['type'];
+        final studentAns = _answers[i];
+        final correctAns = q['answer'];
+
+        bool isCorrect = false;
+
+        if (studentAns != null) {
+          if (type == 'MULTIPLE CHOICE') {
+            isCorrect =
+                studentAns.toString().trim().toUpperCase() ==
+                correctAns.toString().trim().toUpperCase();
+          } else if (type == 'TRUE OR FALSE') {
+            if (studentAns is Map) {
+              final choice = studentAns['choice'];
+              final correction = studentAns['correction'];
+              final isChoiceCorrect = choice == q['answer'];
+              if (choice == 'FALSE') {
+                final isCorrectionCorrect =
+                    correction?.toString().toLowerCase().trim() ==
+                    q['correction']?.toString().toLowerCase().trim();
+                isCorrect = isChoiceCorrect && isCorrectionCorrect;
+              } else {
+                isCorrect = isChoiceCorrect;
+              }
+            } else {
+              isCorrect = studentAns == q['answer'];
+            }
+          } else if (type == 'IDENTIFICATION') {
+            isCorrect =
+                studentAns.toString().toLowerCase().trim() ==
+                correctAns.toString().toLowerCase().trim();
+          } else if (type == 'ENUMERATION') {
+            // Basic enumeration keyword check
+            final cleanCorrect = correctAns
+                .toString()
+                .replaceAll('[', '')
+                .replaceAll(']', '');
+            final correctItems = cleanCorrect
+                .split(RegExp(r'[,;]'))
+                .map((e) => e.trim().toLowerCase())
+                .where((e) => e.isNotEmpty)
+                .toList();
+
+            final studentText = studentAns.toString().toLowerCase();
+            bool allFound = true;
+            for (final item in correctItems) {
+              if (!studentText.contains(item)) {
+                allFound = false;
+                break;
+              }
+            }
+            isCorrect = allFound && correctItems.isNotEmpty;
+          }
+        }
+
+        manualGrades[i.toString()] = isCorrect;
+        if (isCorrect) score++;
+      }
+
       await FirebaseFirestore.instance.collection('submissions').add({
         'assignmentId': widget.assignmentId,
         'studentId': user.uid,
         'studentEmail': user.email,
         'answers': stringAnswers,
+        'manualGrades': manualGrades,
+        'score': score,
+        'totalQuestions': _questions.length,
         'submittedAt': FieldValue.serverTimestamp(),
       });
 
