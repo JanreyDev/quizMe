@@ -5,6 +5,7 @@ import '../class/student_subject_view_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../profile/student_profile_screen.dart';
 import '../../widgets/student_bottom_navbar.dart';
+import 'todo_screen.dart';
 
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
@@ -186,9 +187,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
       return;
     }
 
-    if (index != 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This feature is coming soon!')),
+    if (index == 1) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const TodoScreen()),
       );
       return;
     }

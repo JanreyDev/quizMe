@@ -1713,8 +1713,8 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
       builder: (context) => AlertDialog(
         title: const Text('ATTENTION: Exit Exam?'),
         content: const Text(
-          'If you exit now, your work will be lost. You are required to submit the exam to record your score.\n\n'
-          'Are you absolutely sure you want to leave?',
+          'If you exit now, your current progress will be automatically submitted and the exam will be marked as completed.\n\n'
+          'Are you sure you want to exit and submit now?',
           style: TextStyle(fontWeight: FontWeight.w500),
         ),
         actions: [
@@ -1725,11 +1725,11 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Go back to assignments
+              _turnInAnswers(); // Auto-submit progress
             },
             child: const Text(
-              'EXIT ANYWAY',
-              style: TextStyle(color: Colors.red),
+              'EXIT AND SUBMIT',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
             ),
           ),
         ],
