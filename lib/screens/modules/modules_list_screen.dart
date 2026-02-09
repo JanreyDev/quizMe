@@ -158,25 +158,27 @@ class _ModulesListScreenState extends State<ModulesListScreen> {
                 ),
                 const SizedBox(height: 12),
                 InkWell(
-                  onTap: () async {
-                    FilePickerResult? result = await FilePicker.platform
-                        .pickFiles(
-                          type: FileType.custom,
-                          allowedExtensions: [
-                            'pdf',
-                            'doc',
-                            'docx',
-                            'ppt',
-                            'pptx',
-                          ],
-                        );
-                    if (result != null) {
-                      setModalState(() {
-                        platformFile = result.files.first;
-                        pickedFileName = platformFile!.name;
-                      });
-                    }
-                  },
+                  onTap: pickedFileName != null
+                      ? null
+                      : () async {
+                          FilePickerResult? result = await FilePicker.platform
+                              .pickFiles(
+                                type: FileType.custom,
+                                allowedExtensions: [
+                                  'pdf',
+                                  'doc',
+                                  'docx',
+                                  'ppt',
+                                  'pptx',
+                                ],
+                              );
+                          if (result != null) {
+                            setModalState(() {
+                              platformFile = result.files.first;
+                              pickedFileName = platformFile!.name;
+                            });
+                          }
+                        },
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(24),
@@ -185,30 +187,50 @@ class _ModulesListScreenState extends State<ModulesListScreen> {
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.grey[300]!, width: 1),
                     ),
-                    child: Column(
+                    child: Stack(
+                      alignment: Alignment.center,
                       children: [
-                        Icon(
-                          pickedFileName == null
-                              ? Icons.cloud_upload_outlined
-                              : Icons.check_circle_outline,
-                          size: 48,
-                          color: pickedFileName == null
-                              ? Colors.grey[400]
-                              : const Color(0xFF007D6E),
+                        Column(
+                          children: [
+                            Icon(
+                              pickedFileName == null
+                                  ? Icons.cloud_upload_outlined
+                                  : Icons.check_circle_outline,
+                              size: 48,
+                              color: pickedFileName == null
+                                  ? Colors.grey[400]
+                                  : const Color(0xFF007D6E),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              pickedFileName ??
+                                  'Click to pick PDF, PPTX, or DOCS',
+                              style: TextStyle(
+                                color: pickedFileName == null
+                                    ? Colors.grey[600]
+                                    : Colors.black87,
+                                fontWeight: pickedFileName == null
+                                    ? FontWeight.normal
+                                    : FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 12),
-                        Text(
-                          pickedFileName ?? 'Click to pick PDF, PPTX, or DOCS',
-                          style: TextStyle(
-                            color: pickedFileName == null
-                                ? Colors.grey[600]
-                                : Colors.black87,
-                            fontWeight: pickedFileName == null
-                                ? FontWeight.normal
-                                : FontWeight.bold,
+                        if (pickedFileName != null)
+                          Positioned(
+                            top: -10,
+                            right: -10,
+                            child: IconButton(
+                              icon: const Icon(Icons.cancel, color: Colors.red),
+                              onPressed: () {
+                                setModalState(() {
+                                  platformFile = null;
+                                  pickedFileName = null;
+                                });
+                              },
+                            ),
                           ),
-                          textAlign: TextAlign.center,
-                        ),
                       ],
                     ),
                   ),
@@ -527,6 +549,8 @@ class _ModulesListScreenState extends State<ModulesListScreen> {
                             padding: const EdgeInsets.only(bottom: 12),
                             child: GestureDetector(
                               onTap: () {
+                                if (isPublished)
+                                  return; // Prevent selecting already published items
                                 setState(() {
                                   if (isSelected) {
                                     _selectedItems.remove(docId);

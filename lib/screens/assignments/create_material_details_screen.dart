@@ -186,6 +186,7 @@ class _CreateMaterialDetailsScreenState
 
     return Scaffold(
       backgroundColor: Colors.white,
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -300,7 +301,8 @@ class _CreateMaterialDetailsScreenState
                         child: Column(
                           children: [
                             // Magic AI Section
-                            if (_pickedFile == null)
+                            if (_pickedFile == null &&
+                                widget.existingData?['pdfUrl'] == null)
                               InkWell(
                                 onTap: _pickFileAndGenerateQuestions,
                                 borderRadius: BorderRadius.circular(12),
@@ -345,6 +347,54 @@ class _CreateMaterialDetailsScreenState
                                       ),
                                     ],
                                   ),
+                                ),
+                              )
+                            else if (widget.existingData?['pdfUrl'] != null)
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.blue.shade200,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.picture_as_pdf,
+                                      color: Colors.red,
+                                      size: 24,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'PDF Attached',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                          Text(
+                                            'Content already extracted from file',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.blue.shade700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.check_circle,
+                                      color: Colors.blue,
+                                    ),
+                                  ],
                                 ),
                               )
                             else

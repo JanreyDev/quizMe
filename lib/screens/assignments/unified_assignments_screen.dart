@@ -262,6 +262,8 @@ class _UnifiedAssignmentsScreenState extends State<UnifiedAssignmentsScreen> {
                   padding: const EdgeInsets.only(bottom: 12),
                   child: GestureDetector(
                     onTap: () {
+                      if (isPublished)
+                        return; // Prevent selecting already published items
                       setState(() {
                         if (isSelected) {
                           _selectedItems.remove(itemKey);

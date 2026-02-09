@@ -190,6 +190,8 @@ class _MaterialsListScreenState extends State<MaterialsListScreen> {
 
                     return GestureDetector(
                       onTap: () {
+                        if (isPublished)
+                          return; // Prevent selecting already published items
                         setState(() {
                           _selectedMaterialId = (_selectedMaterialId == docId)
                               ? null
