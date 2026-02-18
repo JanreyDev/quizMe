@@ -255,7 +255,7 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                         child: const Center(
                           child: Text(
-                            'QuizMe',
+                            'SwiftTest',
                             style: TextStyle(
                               fontSize: 34,
                               fontWeight: FontWeight.bold,

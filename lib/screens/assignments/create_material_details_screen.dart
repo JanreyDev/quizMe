@@ -512,7 +512,7 @@ class _CreateMaterialDetailsScreenState
                         const CircularProgressIndicator(),
                         const SizedBox(height: 20),
                         const Text(
-                          'QuizMe is reading your file...',
+                          'SwiftTest is reading your file...',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,

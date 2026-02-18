@@ -218,7 +218,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                       const Expanded(
                         child: Center(
                           child: Text(
-                            'QuizMe',
+                            'SwiftTest',
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
