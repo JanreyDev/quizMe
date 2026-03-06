@@ -75,12 +75,13 @@ class RoleSelectionScreen extends StatelessWidget {
                   const SizedBox(height: 40),
                   _RoleButton(
                     text: 'STUDENT',
+                    isDisabled: true,
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const LoginScreen(role: 'STUDENT'),
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Student login is inprogress...'),
+                          backgroundColor: Color(0xFF5DADE2),
+                          duration: Duration(seconds: 2),
                         ),
                       );
                     },
@@ -111,8 +112,13 @@ class RoleSelectionScreen extends StatelessWidget {
 class _RoleButton extends StatelessWidget {
   final String text;
   final VoidCallback onTap;
+  final bool isDisabled;
 
-  const _RoleButton({required this.text, required this.onTap});
+  const _RoleButton({
+    required this.text,
+    required this.onTap,
+    this.isDisabled = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -122,23 +128,29 @@ class _RoleButton extends StatelessWidget {
         width: double.infinity,
         height: 60,
         decoration: BoxDecoration(
-          color: const Color(0xFF5DADE2),
+          color: isDisabled
+              ? Colors.grey.withOpacity(0.3)
+              : const Color(0xFF5DADE2),
           borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF5DADE2).withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: isDisabled
+              ? []
+              : [
+                  BoxShadow(
+                    color: const Color(0xFF5DADE2).withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
         ),
         child: Center(
           child: Text(
             text,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1A3A5C),
+              color: isDisabled
+                  ? const Color(0xFF1A3A5C).withOpacity(0.5)
+                  : const Color(0xFF1A3A5C),
               letterSpacing: 1.2,
             ),
           ),
