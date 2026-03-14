@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/saved_accounts_service.dart';
 import 'register_screen.dart';
 import '../dashboard/student_dashboard.dart';
 import '../dashboard/teacher_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   final String role; // 'STUDENT' or 'TEACHER'
+  final String? prefilledEmail;
 
-  const LoginScreen({super.key, required this.role});
+  const LoginScreen({super.key, required this.role, this.prefilledEmail});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -20,6 +21,14 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if ((widget.prefilledEmail ?? '').trim().isNotEmpty) {
+      _emailController.text = widget.prefilledEmail!.trim();
+    }
+  }
 
   @override
   void dispose() {
@@ -75,6 +84,11 @@ class _LoginScreenState extends State<LoginScreen> {
       Widget dashboard = storedRole == 'STUDENT'
           ? const StudentDashboard()
           : const TeacherDashboard();
+
+      await SavedAccountsService.upsertFromLogin(
+        user: userCredential.user!,
+        userData: userDoc.data() as Map<String, dynamic>,
+      );
 
       if (mounted) {
         Navigator.pushAndRemoveUntil(

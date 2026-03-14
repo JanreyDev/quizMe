@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/saved_accounts_service.dart';
 import '../auth/login_screen.dart';
 import '../dashboard/todo_screen.dart';
 import '../../widgets/student_bottom_navbar.dart';
@@ -19,6 +20,168 @@ class StudentProfileScreen extends StatelessWidget {
         (route) => false,
       );
     }
+  }
+
+  Future<void> _showChangeUserSheet(BuildContext context) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    List<SavedAccount> allAccounts = const <SavedAccount>[];
+    try {
+      allAccounts = await SavedAccountsService.getSavedAccounts();
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to load saved accounts right now.'),
+          ),
+        );
+      }
+      return;
+    }
+    if (!context.mounted) return;
+
+    final accounts = allAccounts
+        .where(
+          (a) =>
+              a.role.toUpperCase() == 'STUDENT' && a.uid != currentUser?.uid,
+        )
+        .toList();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Switch Account',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (accounts.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Text(
+                          'No saved accounts yet. Log in at least once to save an account.',
+                          style: TextStyle(color: Colors.black54),
+                        ),
+                      )
+                    else
+                      ...accounts.map((account) {
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.blue.shade50,
+                            backgroundImage: account.photoUrl != null
+                                ? NetworkImage(account.photoUrl!)
+                                : null,
+                            child: account.photoUrl == null
+                                ? const Icon(
+                                    Icons.person,
+                                    color: Colors.blueGrey,
+                                  )
+                                : null,
+                          ),
+                          title: Text(account.name),
+                          subtitle: Text(account.email),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                tooltip: 'Remove account',
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.redAccent,
+                                ),
+                                onPressed: () async {
+                                  final shouldRemove =
+                                      await showDialog<bool>(
+                                        context: context,
+                                        builder: (context) {
+                                          return AlertDialog(
+                                            title: const Text('Remove account'),
+                                            content: Text(
+                                              'Remove ${account.email} from saved accounts?',
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(
+                                                  context,
+                                                  false,
+                                                ),
+                                                child: const Text('Cancel'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(
+                                                  context,
+                                                  true,
+                                                ),
+                                                child: const Text('Remove'),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      ) ??
+                                      false;
+
+                                  if (!shouldRemove) return;
+
+                                  await SavedAccountsService.removeByUid(
+                                    account.uid,
+                                  );
+                                  accounts.removeWhere(
+                                    (a) => a.uid == account.uid,
+                                  );
+                                  setModalState(() {});
+                                },
+                              ),
+                            ],
+                          ),
+                          onTap: () async {
+                            await FirebaseAuth.instance.signOut();
+                            if (!context.mounted) return;
+                            Navigator.of(sheetContext).pop();
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(
+                                builder: (_) => LoginScreen(
+                                  role: 'STUDENT',
+                                  prefilledEmail: account.email,
+                                ),
+                              ),
+                              (route) => false,
+                            );
+                          },
+                        );
+                      }),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -141,11 +304,7 @@ class StudentProfileScreen extends StatelessWidget {
                 _buildMenuItem(
                   icon: Icons.person_add_alt,
                   title: 'Change User',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Feature coming soon!')),
-                    );
-                  },
+                  onTap: () => _showChangeUserSheet(context),
                 ),
                 _buildMenuItem(
                   icon: Icons.logout,
