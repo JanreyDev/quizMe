@@ -112,6 +112,19 @@ class _ImageToExcelScreenState extends State<ImageToExcelScreen> {
     }
   }
 
+  Future<void> _showPreview() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _PreviewDialog(
+        onRefresh: () async {
+          final count = await ExcelService.getSessionRowCount();
+          if (mounted) setState(() => _totalRecords = count);
+        },
+      ),
+    );
+  }
+
   Future<void> _clearSession() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -196,44 +209,35 @@ class _ImageToExcelScreenState extends State<ImageToExcelScreen> {
                     size: 20,
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    _totalRecords > 0
-                        ? '$_totalRecords record${_totalRecords == 1 ? '' : 's'} saved in session'
-                        : 'No session data yet',
-                    style: TextStyle(
-                      color: _totalRecords > 0 ? Colors.white : Colors.grey,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (_totalRecords > 0)
-                    GestureDetector(
-                      onTap: _exportExcel,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF5DADE2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.download, color: Colors.white, size: 14),
-                            SizedBox(width: 4),
-                            Text(
-                              'Export',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
+                  Expanded(
+                    child: Text(
+                      _totalRecords > 0
+                          ? '$_totalRecords record${_totalRecords == 1 ? '' : 's'} saved'
+                          : 'No session data yet',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _totalRecords > 0 ? Colors.white : Colors.grey,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
                       ),
                     ),
+                  ),
+                  if (_totalRecords > 0) ...[
+                    const SizedBox(width: 8),
+                    _BannerButton(
+                      text: 'Preview',
+                      icon: Icons.visibility,
+                      onPressed: _showPreview,
+                      isPrimary: false,
+                    ),
+                    const SizedBox(width: 6),
+                    _BannerButton(
+                      text: 'Export',
+                      icon: Icons.download,
+                      onPressed: _exportExcel,
+                      isPrimary: true,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -449,6 +453,176 @@ class _ImageToExcelScreenState extends State<ImageToExcelScreen> {
               onPressed: _isProcessing || _pendingImages.isEmpty
                   ? () {}
                   : _processBatch,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PreviewDialog extends StatefulWidget {
+  final VoidCallback onRefresh;
+  const _PreviewDialog({required this.onRefresh});
+
+  @override
+  State<_PreviewDialog> createState() => _PreviewDialogState();
+}
+
+class _PreviewDialogState extends State<_PreviewDialog> {
+  List<Map<String, String>> _data = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final data = await ExcelService.getSessionData();
+    if (mounted) {
+      setState(() {
+        _data = data;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog.fullscreen(
+      backgroundColor: const Color(0xFFF5F7FA),
+      child: Column(
+        children: [
+          AppBar(
+            title: const Text(
+              'Session Preview',
+              style: TextStyle(color: Color(0xFF1A3A5C), fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: Colors.white,
+            elevation: 1,
+            leading: IconButton(
+              icon: const Icon(Icons.close, color: Color(0xFF1A3A5C)),
+              onPressed: () => Navigator.pop(context),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Done', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _data.isEmpty
+                    ? const Center(child: Text('No data found in session.'))
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SingleChildScrollView(
+                          child: DataTable(
+                            headingRowColor: MaterialStateProperty.all(
+                              const Color(0xFF1A3A5C).withOpacity(0.05),
+                            ),
+                            columns: [
+                              const DataColumn(
+                                label: Text(
+                                  'Action',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              ...(_data.first.keys.map(
+                                (h) => DataColumn(
+                                  label: Text(
+                                    h,
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              )),
+                            ],
+                            rows: _data.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final row = entry.value;
+                              return DataRow(
+                                cells: [
+                                  DataCell(
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                      onPressed: () async {
+                                        final confirmed = await showDialog<bool>(
+                                          context: context,
+                                          builder: (ctx) => AlertDialog(
+                                            title: const Text('Delete Row?'),
+                                            content: const Text('Are you sure you want to remove this record?'),
+                                            actions: [
+                                              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(ctx, true), 
+                                                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                                child: const Text('Delete'),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                        if (confirmed == true) {
+                                          await ExcelService.deleteRowFromSession(index);
+                                          _loadData();
+                                          widget.onRefresh();
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                  ...row.values.map((v) => DataCell(Text(v))),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BannerButton extends StatelessWidget {
+  final String text;
+  final IconData icon;
+  final VoidCallback onPressed;
+  final bool isPrimary;
+
+  const _BannerButton({
+    required this.text,
+    required this.icon,
+    required this.onPressed,
+    required this.isPrimary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isPrimary ? const Color(0xFF5DADE2) : Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(8),
+          border: isPrimary ? null : Border.all(color: Colors.white.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white, size: 14),
+            const SizedBox(width: 4),
+            Text(
+              text,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),

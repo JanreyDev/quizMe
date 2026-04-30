@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'auth/login_screen.dart';
+import 'special/image_to_excel_screen.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
@@ -61,7 +62,7 @@ class RoleSelectionScreen extends StatelessWidget {
                       height: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 100),
+                  const SizedBox(height: 80),
                   const Center(
                     child: Text(
                       'Are you a...',
@@ -75,6 +76,7 @@ class RoleSelectionScreen extends StatelessWidget {
                   const SizedBox(height: 40),
                   _RoleButton(
                     text: 'STUDENT',
+                    icon: Icons.person_outline,
                     isDisabled: true,
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -89,12 +91,26 @@ class RoleSelectionScreen extends StatelessWidget {
                   const SizedBox(height: 20),
                   _RoleButton(
                     text: 'TEACHER',
+                    icon: Icons.school_outlined,
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) =>
                               const LoginScreen(role: 'TEACHER'),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  _RoleButton(
+                    text: 'CONVERTER',
+                    icon: Icons.table_chart_outlined,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ImageToExcelScreen(),
                         ),
                       );
                     },
@@ -111,11 +127,13 @@ class RoleSelectionScreen extends StatelessWidget {
 
 class _RoleButton extends StatelessWidget {
   final String text;
+  final IconData icon;
   final VoidCallback onTap;
   final bool isDisabled;
 
   const _RoleButton({
     required this.text,
+    required this.icon,
     required this.onTap,
     this.isDisabled = false,
   });
@@ -126,33 +144,70 @@ class _RoleButton extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        height: 60,
+        height: 65,
         decoration: BoxDecoration(
-          color: isDisabled
-              ? Colors.grey.withOpacity(0.3)
-              : const Color(0xFF5DADE2),
-          borderRadius: BorderRadius.circular(30),
+          gradient: isDisabled
+              ? LinearGradient(
+                  colors: [
+                    Colors.grey.withOpacity(0.2),
+                    Colors.grey.withOpacity(0.3),
+                  ],
+                )
+              : const LinearGradient(
+                  colors: [Color(0xFF5DADE2), Color(0xFF3498DB)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: isDisabled
               ? []
               : [
                   BoxShadow(
-                    color: const Color(0xFF5DADE2).withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
+                    color: const Color(0xFF3498DB).withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
                   ),
                 ],
         ),
-        child: Center(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: isDisabled
-                  ? const Color(0xFF1A3A5C).withOpacity(0.5)
-                  : const Color(0xFF1A3A5C),
-              letterSpacing: 1.2,
-            ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: isDisabled
+                      ? const Color(0xFF1A3A5C).withOpacity(0.3)
+                      : const Color(0xFF1A3A5C),
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 20),
+              Text(
+                text,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDisabled
+                      ? const Color(0xFF1A3A5C).withOpacity(0.5)
+                      : const Color(0xFF1A3A5C),
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const Spacer(),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: isDisabled
+                    ? const Color(0xFF1A3A5C).withOpacity(0.2)
+                    : const Color(0xFF1A3A5C).withOpacity(0.5),
+              ),
+            ],
           ),
         ),
       ),

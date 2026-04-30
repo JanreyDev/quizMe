@@ -53,6 +53,66 @@ Rules:
     return rows.length > 1 ? rows.length - 1 : 0; // subtract header row
   }
 
+  /// Returns all data in the current session as a list of maps (column -> value)
+  static Future<List<Map<String, String>>> getSessionData() async {
+    final path = await _sessionFilePath;
+    final file = File(path);
+    if (!file.existsSync()) return [];
+
+    final bytes = await file.readAsBytes();
+    final excel = Excel.decodeBytes(bytes);
+    final sheet = excel.sheets.values.first;
+    if (sheet.rows.isEmpty) return [];
+
+    final headers = sheet.rows.first.map<String>((cell) {
+      final val = cell?.value;
+      if (val == null) return '';
+      // Handle excel 4.x CellValue types
+      return val is TextCellValue ? val.value.toString() : val.toString();
+    }).toList();
+
+    final List<Map<String, String>> data = [];
+    for (int i = 1; i < sheet.rows.length; i++) {
+      final row = sheet.rows[i];
+      final Map<String, String> rowData = {};
+      for (int j = 0; j < headers.length; j++) {
+        final header = headers[j];
+        if (header.isEmpty) continue;
+
+        final cell = j < row.length ? row[j] : null;
+        final val = cell?.value;
+        String stringVal = '';
+        if (val != null) {
+          // Handle excel 4.x CellValue types
+          stringVal = val is TextCellValue ? val.value.toString() : val.toString();
+        }
+        rowData[header] = stringVal.isEmpty ? 'None' : stringVal;
+      }
+      data.add(rowData);
+    }
+    return data;
+  }
+
+  /// Deletes a specific row (by 0-based data index, i.e., index 0 is first data row)
+  static Future<void> deleteRowFromSession(int index) async {
+    final path = await _sessionFilePath;
+    final file = File(path);
+    if (!file.existsSync()) return;
+
+    final bytes = await file.readAsBytes();
+    final excel = Excel.decodeBytes(bytes);
+    final sheet = excel.sheets.values.first;
+
+    // The data row is at index + 1 (because of header)
+    if (index + 1 < sheet.rows.length) {
+      sheet.removeRow(index + 1);
+      final fileBytes = excel.save();
+      if (fileBytes != null) {
+        await file.writeAsBytes(fileBytes);
+      }
+    }
+  }
+
   /// Extract fields from a single image
   static Future<List<Map<String, String>>> _extractFieldsFromImage(
     File imageFile,
@@ -75,13 +135,8 @@ Rules:
           throw Exception('AI returned empty response. Please try again.');
         }
 
-        if (jsonText.contains('```json')) {
-          jsonText = jsonText.split('```json').last.split('```').first.trim();
-        } else if (jsonText.contains('```')) {
-          jsonText = jsonText.split('```')[1].trim();
-        }
-
-        final Map<String, dynamic> data = jsonDecode(jsonText);
+        final String cleanJson = _sanitizeJson(jsonText);
+        final Map<String, dynamic> data = jsonDecode(cleanJson);
         final List<dynamic> fields = data['fields'] as List<dynamic>;
         return fields
             .map(
@@ -128,6 +183,22 @@ Rules:
     throw Exception('Failed after $maxRetries attempts. Please try again.');
   }
 
+  static String _sanitizeJson(String input) {
+    String jsonText = input;
+    if (jsonText.contains('```json')) {
+      jsonText = jsonText.split('```json').last.split('```').first.trim();
+    } else if (jsonText.contains('```')) {
+      jsonText = jsonText.split('```')[1].trim();
+    }
+    // Remove any trailing/leading non-json characters if they still exist
+    final start = jsonText.indexOf('{');
+    final end = jsonText.lastIndexOf('}');
+    if (start != -1 && end != -1 && end > start) {
+      jsonText = jsonText.substring(start, end + 1);
+    }
+    return jsonText;
+  }
+
   /// Process a batch of images and APPEND to the persistent session Excel.
   /// Creates a new session file if none exists.
   /// Returns the total number of data rows after appending.
@@ -165,7 +236,14 @@ Rules:
       sheet = excel.sheets.values.first;
       masterHeaders = sheet.rows.isNotEmpty
           ? sheet.rows.first
-                .map((cell) => cell?.value?.toString() ?? '')
+                .map<String>((cell) {
+                  final val = cell?.value;
+                  if (val == null) return '';
+                  // Handle excel 4.x CellValue types
+                  return val is TextCellValue 
+                    ? val.value.toString() 
+                    : val.toString();
+                })
                 .toList()
           : [];
 
@@ -230,6 +308,7 @@ Rules:
     final file = File(path);
     if (!file.existsSync()) throw Exception('No session data to export.');
     await Share.shareXFiles([XFile(path)], text: 'Exported data');
+
   }
 
   /// Delete the session file (clear all accumulated data)
